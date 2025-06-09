@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fargo Puzzle</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+      
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        background-size: 400% 400%;
+        animation: gradientShift 8s ease infinite;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        overflow-x: hidden;
+      }
+
+      @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      #gameContainer {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 25px;
+        border-radius: 24px;
+        box-shadow: 
+          0 20px 40px rgba(0, 0, 0, 0.1),
+          0 8px 16px rgba(0, 0, 0, 0.06),
+          inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        margin-bottom: 20px;
+        position: relative;
+        width: 100%;
+        max-width: 420px;
+        transform: translateY(0);
+        animation: containerFloat 6s ease-in-out infinite;
+      }
+
+      @keyframes containerFloat {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-8px); }
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        grid-template-rows: repeat(6, 1fr);
+        gap: 3px;
+        background: linear-gradient(145deg, #2d3748, #4a5568);
+        padding: 8px;
+        border-radius: 16px;
+        position: relative;
+        aspect-ratio: 1;
+        box-shadow: 
+          inset 0 2px 4px rgba(0, 0, 0, 0.3),
+          0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .cell {
+        background: linear-gradient(145deg, #ffffff, #f7fafc);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: clamp(22px, 5vw, 32px);
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 8px;
+        position: relative;
+        border: 2px solid transparent;
+        overflow: hidden;
+      }
+
+      .cell::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, transparent, rgba(99, 102, 241, 0.1), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .cell:hover:not(.initial-cell)::before {
+        opacity: 1;
+      }
+
+      .cell:hover:not(.initial-cell) {
+        background: linear-gradient(145deg, #f0f9ff, #e0f2fe);
+        transform: scale(1.08) translateY(-2px);
+        border-color: rgba(99, 102, 241, 0.3);
+        box-shadow: 
+          0 8px 25px rgba(99, 102, 241, 0.15),
+          0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .cell.initial-cell {
+        background: linear-gradient(145deg, #e6fffa, #b2f5ea) !important;
+        cursor: not-allowed !important;
+        font-weight: 700;
+        color: #065f46;
+        border-color: rgba(16, 185, 129, 0.3);
+        box-shadow: inset 0 1px 3px rgba(16, 185, 129, 0.1);
+      }
+
+      .cell.error {
+        background: linear-gradient(145deg, #fef2f2, #fee2e2) !important;
+        color: #dc2626 !important;
+        border-color: rgba(239, 68, 68, 0.4);
+        animation: errorPulse 0.6s ease-in-out;
+      }
+
+      @keyframes errorPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+
+      .hint {
+        position: absolute;
+        font-size: clamp(16px, 4vw, 20px);
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(8px);
+        border-radius: 50%;
+        width: clamp(28px, 6vw, 36px);
+        height: clamp(28px, 6vw, 36px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        box-shadow: 
+          0 4px 12px rgba(0, 0, 0, 0.15),
+          0 2px 6px rgba(0, 0, 0, 0.1);
+        border: 2px solid;
+        transition: all 0.3s ease;
+      }
+
+      .hint:hover {
+        transform: scale(1.1);
+      }
+
+      .hint.same {
+        color: #059669;
+        background: linear-gradient(145deg, rgba(236, 253, 245, 0.95), rgba(209, 250, 229, 0.95));
+        border-color: #10b981;
+      }
+
+      .hint.diff {
+        color: #dc2626;
+        background: linear-gradient(145deg, rgba(254, 242, 242, 0.95), rgba(254, 226, 226, 0.95));
+        border-color: #ef4444;
+      }
+
+      .hint.row-hint {
+        right: -18px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      .hint.col-hint {
+        bottom: -18px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .status {
+        margin-top: 20px;
+        padding: 16px 24px;
+        border-radius: 16px;
+        font-weight: 600;
+        text-align: center;
+        backdrop-filter: blur(10px);
+        border: 1px solid;
+        animation: statusSlideIn 0.5s ease-out;
+      }
+
+      @keyframes statusSlideIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .status.success {
+        background: linear-gradient(145deg, rgba(236, 253, 245, 0.9), rgba(209, 250, 229, 0.9));
+        color: #065f46;
+        border-color: rgba(16, 185, 129, 0.3);
+        box-shadow: 0 8px 25px rgba(16, 185, 129, 0.15);
+      }
+
+      .status.error {
+        background: linear-gradient(145deg, rgba(254, 242, 242, 0.9), rgba(254, 226, 226, 0.9));
+        color: #991b1b;
+        border-color: rgba(239, 68, 68, 0.3);
+        box-shadow: 0 8px 25px rgba(239, 68, 68, 0.15);
+      }
+
+      .puzzle-info {
+        color: white;
+        text-align: center;
+        margin-bottom: 15px;
+        font-size: 18px;
+      }
+
+      .rules {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        color: white;
+        padding: 20px;
+        border-radius: 16px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        line-height: 1.6;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .rules h3 {
+        margin-top: 0;
+        color: #fff;
+        font-weight: 600;
+      }
+
+      .welcome-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        background-size: 400% 400%;
+        animation: gradientShift 8s ease infinite;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      .welcome-content {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        padding: 40px 30px;
+        border-radius: 32px;
+        text-align: center;
+        width: 100%;
+        max-width: 480px;
+        box-shadow: 
+          0 25px 50px rgba(0, 0, 0, 0.15),
+          0 12px 24px rgba(0, 0, 0, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        animation: welcomeSlideIn 0.8s ease-out;
+      }
+
+      @keyframes welcomeSlideIn {
+        from {
+          opacity: 0;
+          transform: translateY(30px) scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .welcome-content h1 {
+        background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: clamp(32px, 8vw, 48px);
+        margin-bottom: 30px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      .start-btn {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        padding: 16px 40px;
+        font-size: 18px;
+        font-weight: 600;
+        border-radius: 50px;
+        cursor: pointer;
+        margin-top: 30px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 80%;
+        max-width: 300px;
+        box-shadow: 
+          0 8px 20px rgba(102, 126, 234, 0.3),
+          0 4px 12px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .start-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s ease;
+      }
+
+      .start-btn:hover::before {
+        left: 100%;
+      }
+
+      .start-btn:hover {
+        background: linear-gradient(135deg, #5a67d8, #6b46c1);
+        transform: translateY(-3px);
+        box-shadow: 
+          0 12px 30px rgba(102, 126, 234, 0.4),
+          0 6px 16px rgba(0, 0, 0, 0.15);
+      }
+
+      .start-btn:active {
+        transform: translateY(-1px);
+      }
+
+      .welcome-content .rules {
+        background: linear-gradient(145deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        backdrop-filter: blur(10px);
+        padding: 20px;
+        border-radius: 20px;
+        margin: 25px 0;
+        text-align: left;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+      }
+
+      .welcome-content .rules h3 {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-top: 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      .welcome-content .rules p {
+        color: #4a5568;
+        margin: 12px 0;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .game-info {
+        color: white;
+        font-size: clamp(20px, 5vw, 28px);
+        font-weight: 600;
+        margin-bottom: 20px;
+        background: linear-gradient(145deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.1));
+        backdrop-filter: blur(10px);
+        padding: 20px 30px;
+        border-radius: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+        width: 100%;
+        max-width: 420px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 
+          0 8px 25px rgba(0, 0, 0, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      }
+
+      .game-info-row {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      .controls {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+        max-width: 420px;
+      }
+
+      .btn {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 16px;
+        background: linear-gradient(145deg, #667eea, #764ba2);
+        color: white;
+        font-size: clamp(13px, 3vw, 15px);
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        flex: 1;
+        min-width: 90px;
+        box-shadow: 
+          0 4px 12px rgba(102, 126, 234, 0.3),
+          0 2px 6px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+        transition: left 0.4s ease;
+      }
+
+      .btn:hover:not(:disabled)::before {
+        left: 100%;
+      }
+
+      .btn:hover:not(:disabled) {
+        background: linear-gradient(145deg, #5a67d8, #6b46c1);
+        transform: translateY(-2px);
+        box-shadow: 
+          0 8px 20px rgba(102, 126, 234, 0.4),
+          0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .btn:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      .btn:disabled {
+        background: linear-gradient(145deg, #cbd5e0, #a0aec0);
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .btn:disabled::before {
+        display: none;
+      }
+
+      /* Floating particles animation */
+      .welcome-screen::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+          radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+          radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+          radial-gradient(circle at 60% 70%, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+          radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+        background-size: 200px 200px, 150px 150px, 300px 300px, 250px 250px;
+        animation: floatingParticles 20s ease-in-out infinite;
+        opacity: 0.6;
+      }
+
+      @keyframes floatingParticles {
+        0%, 100% { transform: translate(0, 0); }
+        25% { transform: translate(-10px, -20px); }
+        50% { transform: translate(10px, -10px); }
+        75% { transform: translate(-5px, 15px); }
+      }
+
+      @media (max-width: 480px) {
+        body {
+          padding: 15px;
+        }
+
+        #gameContainer {
+          padding: 20px;
+          border-radius: 20px;
+        }
+
+        .game-info {
+          font-size: 20px;
+          padding: 16px 20px;
+        }
+
+        .controls {
+          gap: 10px;
+        }
+
+        .btn {
+          padding: 10px 16px;
+          min-width: 80px;
+        }
+
+        .welcome-content {
+          padding: 30px 20px;
+          border-radius: 24px;
+        }
+
+        .grid {
+          padding: 6px;
+          gap: 2px;
+        }
+
+        .hint {
+          width: 24px;
+          height: 24px;
+          font-size: 14px;
+        }
+
+        .hint.row-hint {
+          right: -12px;
+        }
+
+        .hint.col-hint {
+          bottom: -12px;
+        }
+      }
+
+      /* Success celebration animation */
+      @keyframes celebrate {
+        0% { transform: scale(1) rotate(0deg); }
+        50% { transform: scale(1.1) rotate(5deg); }
+        100% { transform: scale(1) rotate(0deg); }
+      }
+
+      .celebrating {
+        animation: celebrate 0.6s ease-in-out;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="welcome-screen" id="welcomeScreen">
+      <div class="welcome-content">
+        <h1>🌟 Fargo Puzzle</h1>
+        <div class="rules">
+          <h3>🎯 Game Rules</h3>
+          <p>• Fill the grid with ☀️ (Sun) and 🌙 (Moon) symbols</p>
+          <p>• Each row and column must have exactly 3 suns and 3 moons</p>
+          <p>• No more than 2 identical symbols can be adjacent</p>
+          <p>• Follow the hints: = means same, × means different</p>
+          <h3>⚡ Scoring System</h3>
+          <p>• You need to solve 3 puzzles</p>
+          <p>• Score is based on your solving speed</p>
+          <p>• Faster completion = Higher score</p>
+          <p>• Your final score will be shown after completing all puzzles</p>
+        </div>
+        <button class="start-btn" onclick="startGame()">🚀 Start Game</button>
+      </div>
+    </div>
+
+    <div id="gameScreen" style="display: none">
+      <div id="gameContainer">
+        <div class="grid-container">
+          <div class="grid" id="grid"></div>
+        </div>
+      </div>
+
+      <div class="game-info">
+        <div class="game-info-row">
+          <div>🧩 Puzzle <span id="currentPuzzle">1</span>/3</div>
+          <div>⭐ Score: <span id="currentScore">0</span></div>
+        </div>
+        <div id="timer">⏱️ Time: 0:00</div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" onclick="undoMove()" id="undoBtn" disabled>
+          ↶ Undo
+        </button>
+        <button class="btn" onclick="redoMove()" id="redoBtn" disabled>
+          ↷ Redo
+        </button>
+        <button class="btn" onclick="resetPuzzle()">🔄 Reset</button>
+      </div>
+
+      <div id="status" class="status" style="display: none"></div>
+    </div>
+
+    <script>
+      const GRID_SIZE = 6;
+      const SYMBOLS = { EMPTY: "", SUN: "☀️", MOON: "🌙" };
+      const HINTS = { SAME: "=", DIFF: "×" };
+      const TOTAL_PUZZLES = 3;
+      const BASE_SCORE = 1000;
+
+      let currentPuzzle = {
+        solution: null,
+        hints: null,
+        startGrid: null,
+      };
+      let grid = [];
+      let history = [];
+      let redoStack = [];
+      let startTime = null;
+      let timerInterval = null;
+      let currentPuzzleNumber = 1;
+      let totalScore = 0;
+      let puzzleTimes = [];
+
+      // Initialize game
+      function initGame() {
+        currentPuzzleNumber = 1;
+        totalScore = 0;
+        puzzleTimes = [];
+        updatePuzzleInfo();
+        generateNewPuzzle();
+        startTimer();
+      }
+
+      function generateNewPuzzle() {
+        // Generate a valid solution first
+        const solution = generateValidSolution();
+
+        // Create hints based on solution
+        const hints = generateHints(solution);
+
+        // Create starting grid with some cells filled
+        const startGrid = createStartingGrid(solution);
+
+        currentPuzzle = {
+          solution: solution,
+          hints: hints,
+          startGrid: startGrid,
+        };
+
+        // Initialize game grid
+        grid = JSON.parse(JSON.stringify(startGrid));
+        history = [];
+        redoStack = [];
+
+        renderGrid();
+        updateButtons();
+        hideStatus();
+      }
+
+      function generateValidSolution() {
+        const solution = Array(GRID_SIZE)
+          .fill()
+          .map(() => Array(GRID_SIZE).fill(""));
+
+        // Fill the grid using backtracking
+        if (fillGrid(solution, 0, 0)) {
+          return solution;
+        }
+
+        // Fallback: generate a simpler valid solution
+        return generateSimpleSolution();
+      }
+
+      function generateSimpleSolution() {
+        const solution = Array(GRID_SIZE)
+          .fill()
+          .map(() => Array(GRID_SIZE).fill(""));
+
+        for (let row = 0; row < GRID_SIZE; row++) {
+          const pattern = generateValidRowPattern();
+          for (let col = 0; col < GRID_SIZE; col++) {
+            solution[row][col] = pattern[col];
+          }
+        }
+
+        // Ensure columns are also valid
+        fixColumns(solution);
+        return solution;
+      }
+
+      function generateValidRowPattern() {
+        const patterns = [
+          [
+            SYMBOLS.SUN,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.MOON,
+          ],
+          [
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+          ],
+          [
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+          ],
+          [
+            SYMBOLS.MOON,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.SUN,
+          ],
+          [
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+          ],
+          [
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+          ],
+        ];
+        return patterns[Math.floor(Math.random() * patterns.length)];
+      }
+
+      function fixColumns(solution) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+          let sunCount = 0,
+            moonCount = 0;
+          for (let row = 0; row < GRID_SIZE; row++) {
+            if (solution[row][col] === SYMBOLS.SUN) sunCount++;
+            else moonCount++;
+          }
+
+          // If column has wrong counts, fix it
+          if (sunCount !== 3 || moonCount !== 3) {
+            const needSun = 3 - sunCount;
+            let changes = 0;
+            for (
+              let row = 0;
+              row < GRID_SIZE && changes < Math.abs(needSun);
+              row++
+            ) {
+              if (needSun > 0 && solution[row][col] === SYMBOLS.MOON) {
+                if (canPlaceSymbol(solution, row, col, SYMBOLS.SUN)) {
+                  solution[row][col] = SYMBOLS.SUN;
+                  changes++;
+                }
+              } else if (needSun < 0 && solution[row][col] === SYMBOLS.SUN) {
+                if (canPlaceSymbol(solution, row, col, SYMBOLS.MOON)) {
+                  solution[row][col] = SYMBOLS.MOON;
+                  changes++;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      function fillGrid(grid, row, col) {
+        if (row === GRID_SIZE) return true;
+
+        const nextRow = col === GRID_SIZE - 1 ? row + 1 : row;
+        const nextCol = col === GRID_SIZE - 1 ? 0 : col + 1;
+
+        const symbols = [SYMBOLS.SUN, SYMBOLS.MOON];
+        // Shuffle for randomness
+        for (let i = symbols.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [symbols[i], symbols[j]] = [symbols[j], symbols[i]];
+        }
+
+        for (const symbol of symbols) {
+          if (canPlaceSymbol(grid, row, col, symbol)) {
+            grid[row][col] = symbol;
+            if (fillGrid(grid, nextRow, nextCol)) {
+              return true;
+            }
+            grid[row][col] = "";
+          }
+        }
+
+        return false;
+      }
+
+      function canPlaceSymbol(grid, row, col, symbol) {
+        // Check if placing this symbol would create 3 in a row
+        const tempGrid = JSON.parse(JSON.stringify(grid));
+        tempGrid[row][col] = symbol;
+
+        // Check horizontal
+        if (
+          hasThreeInRow(tempGrid, row, col, 0, 1) ||
+          hasThreeInRow(tempGrid, row, col, 0, -1)
+        ) {
+          return false;
+        }
+
+        // Check vertical
+        if (
+          hasThreeInRow(tempGrid, row, col, 1, 0) ||
+          hasThreeInRow(tempGrid, row, col, -1, 0)
+        ) {
+          return false;
+        }
+
+        // Check row/col counts
+        return isValidPlacement(tempGrid, row, col, symbol);
+      }
+
+      function hasThreeInRow(grid, row, col, deltaRow, deltaCol) {
+        const symbol = grid[row][col];
+        if (!symbol) return false;
+
+        let count = 1;
+
+        // Count in positive direction
+        let r = row + deltaRow;
+        let c = col + deltaCol;
+        while (
+          r >= 0 &&
+          r < GRID_SIZE &&
+          c >= 0 &&
+          c < GRID_SIZE &&
+          grid[r][c] === symbol
+        ) {
+          count++;
+          r += deltaRow;
+          c += deltaCol;

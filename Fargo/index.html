@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fargo Puzzle</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      #gameContainer {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        margin-bottom: 20px;
+        position: relative;
+      }
+
+      #timer {
+        color: white;
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 12px 25px;
+        border-radius: 20px;
+        backdrop-filter: blur(5px);
+      }
+
+      .controls {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        background: #4a90e2;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn:hover {
+        background: #357abd;
+        transform: translateY(-2px);
+      }
+
+      .btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .grid-container {
+        position: relative;
+        display: inline-block;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(6, 60px);
+        grid-template-rows: repeat(6, 60px);
+        gap: 2px;
+        background: #333;
+        padding: 2px;
+        border-radius: 8px;
+        position: relative;
+      }
+
+      .cell {
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.15s;
+        border-radius: 3px;
+        position: relative;
+      }
+
+      .cell:hover:not(.initial-cell) {
+        background: #f0f8ff;
+        transform: scale(1.05);
+      }
+
+      .cell.initial-cell {
+        background: #e8f4f8 !important;
+        cursor: not-allowed !important;
+        font-weight: bold;
+        color: #2c5282;
+      }
+
+      .cell.error {
+        background: #ffebee !important;
+        color: #c62828 !important;
+      }
+
+      .hint {
+        position: absolute;
+        font-size: 18px;
+        color: #666;
+        font-weight: bold;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+      }
+
+      .hint.row-hint {
+        right: -15px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      .hint.col-hint {
+        bottom: -15px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .status {
+        margin-top: 20px;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: bold;
+        text-align: center;
+      }
+
+      .status.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .status.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .puzzle-info {
+        color: white;
+        text-align: center;
+        margin-bottom: 15px;
+        font-size: 18px;
+      }
+
+      .rules {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .rules h3 {
+        margin-top: 0;
+        color: #fff;
+      }
+
+      .welcome-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+
+      .welcome-content {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        max-width: 600px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      }
+
+      .welcome-content h1 {
+        color: #4a90e2;
+        font-size: 48px;
+        margin-bottom: 30px;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .start-btn {
+        background: #4a90e2;
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        font-size: 20px;
+        border-radius: 30px;
+        cursor: pointer;
+        margin-top: 30px;
+        transition: all 0.3s ease;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .start-btn:hover {
+        background: #357abd;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .welcome-content .rules {
+        background: rgba(74, 144, 226, 0.1);
+        padding: 20px;
+        border-radius: 15px;
+        margin: 20px 0;
+        text-align: left;
+      }
+
+      .welcome-content .rules h3 {
+        color: #4a90e2;
+        margin-top: 0;
+        font-size: 24px;
+      }
+
+      .welcome-content .rules p {
+        color: #333;
+        margin: 10px 0;
+        font-size: 16px;
+        line-height: 1.6;
+      }
+
+      .score-info {
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 12px 25px;
+        border-radius: 20px;
+        backdrop-filter: blur(5px);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="welcome-screen" id="welcomeScreen">
+      <div class="welcome-content">
+        <h1>Fargo Puzzle</h1>
+        <div class="rules">
+          <h3>🌟 Game Rules</h3>
+          <p>• Fill the grid with ☀️ (Sun) and 🌙 (Moon) symbols</p>
+          <p>• Each row and column must have exactly 3 suns and 3 moons</p>
+          <p>• No more than 2 identical symbols can be adjacent</p>
+          <p>• Follow the hints: = means same, × means different</p>
+          <h3>🎯 Scoring System</h3>
+          <p>• You need to solve 3 puzzles</p>
+          <p>• Score is based on your solving speed</p>
+          <p>• Faster completion = Higher score</p>
+          <p>• Your final score will be shown after completing all puzzles</p>
+        </div>
+        <button class="start-btn" onclick="startGame()">Start Game</button>
+      </div>
+    </div>
+
+    <div id="gameScreen" style="display: none">
+      <div class="score-info">
+        <div>Puzzle <span id="currentPuzzle">1</span>/3</div>
+        <div>Score: <span id="currentScore">0</span></div>
+      </div>
+      <div id="timer">Time: 0:00</div>
+
+      <div class="controls">
+        <button class="btn" onclick="undoMove()" id="undoBtn" disabled>
+          ↶ Undo
+        </button>
+        <button class="btn" onclick="redoMove()" id="redoBtn" disabled>
+          ↷ Redo
+        </button>
+        <button class="btn" onclick="resetPuzzle()">🔄 Reset</button>
+      </div>
+
+      <div id="gameContainer">
+        <div class="grid-container">
+          <div class="grid" id="grid"></div>
+        </div>
+      </div>
+
+      <div id="status" class="status" style="display: none"></div>
+    </div>
+
+    <script>
+      const GRID_SIZE = 6;
+      const SYMBOLS = { EMPTY: "", SUN: "☀️", MOON: "🌙" };
+      const HINTS = { SAME: "=", DIFF: "×" };
+      const TOTAL_PUZZLES = 3;
+      const BASE_SCORE = 1000;
+
+      let currentPuzzle = {
+        solution: null,
+        hints: null,
+        startGrid: null,
+      };
+      let grid = [];
+      let history = [];
+      let redoStack = [];
+      let startTime = null;
+      let timerInterval = null;
+      let currentPuzzleNumber = 1;
+      let totalScore = 0;
+      let puzzleTimes = [];
+
+      // Initialize game
+      function initGame() {
+        currentPuzzleNumber = 1;
+        totalScore = 0;
+        puzzleTimes = [];
+        updatePuzzleInfo();
+        generateNewPuzzle();
+        startTimer();
+      }
+
+      function generateNewPuzzle() {
+        // Generate a valid solution first
+        const solution = generateValidSolution();
+
+        // Create hints based on solution
+        const hints = generateHints(solution);
+
+        // Create starting grid with some cells filled
+        const startGrid = createStartingGrid(solution);
+
+        currentPuzzle = {
+          solution: solution,
+          hints: hints,
+          startGrid: startGrid,
+        };
+
+        // Initialize game grid
+        grid = JSON.parse(JSON.stringify(startGrid));
+        history = [];
+        redoStack = [];
+
+        renderGrid();
+        updateButtons();
+        hideStatus();
+      }
+
+      function generateValidSolution() {
+        const solution = Array(GRID_SIZE)
+          .fill()
+          .map(() => Array(GRID_SIZE).fill(""));
+
+        // Fill the grid using backtracking
+        if (fillGrid(solution, 0, 0)) {
+          return solution;
+        }
+
+        // Fallback: generate a simpler valid solution
+        return generateSimpleSolution();
+      }
+
+      function generateSimpleSolution() {
+        const solution = Array(GRID_SIZE)
+          .fill()
+          .map(() => Array(GRID_SIZE).fill(""));
+
+        for (let row = 0; row < GRID_SIZE; row++) {
+          const pattern = generateValidRowPattern();
+          for (let col = 0; col < GRID_SIZE; col++) {
+            solution[row][col] = pattern[col];
+          }
+        }
+
+        // Ensure columns are also valid
+        fixColumns(solution);
+        return solution;
+      }
+
+      function generateValidRowPattern() {
+        const patterns = [
+          [
+            SYMBOLS.SUN,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.MOON,
+          ],
+          [
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+          ],
+          [
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+          ],
+          [
+            SYMBOLS.MOON,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.SUN,
+          ],
+          [
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+          ],
+          [
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+            SYMBOLS.SUN,
+            SYMBOLS.MOON,
+            SYMBOLS.MOON,
+            SYMBOLS.SUN,
+          ],
+        ];
+        return patterns[Math.floor(Math.random() * patterns.length)];
+      }
+
+      function fixColumns(solution) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+          let sunCount = 0,
+            moonCount = 0;
+          for (let row = 0; row < GRID_SIZE; row++) {
+            if (solution[row][col] === SYMBOLS.SUN) sunCount++;
+            else moonCount++;
+          }
+
+          // If column has wrong counts, fix it
+          if (sunCount !== 3 || moonCount !== 3) {
+            const needSun = 3 - sunCount;
+            let changes = 0;
+            for (
+              let row = 0;
+              row < GRID_SIZE && changes < Math.abs(needSun);
+              row++
+            ) {
+              if (needSun > 0 && solution[row][col] === SYMBOLS.MOON) {
+                if (canPlaceSymbol(solution, row, col, SYMBOLS.SUN)) {
+                  solution[row][col] = SYMBOLS.SUN;
+                  changes++;
+                }
+              } else if (needSun < 0 && solution[row][col] === SYMBOLS.SUN) {
+                if (canPlaceSymbol(solution, row, col, SYMBOLS.MOON)) {
+                  solution[row][col] = SYMBOLS.MOON;
+                  changes++;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      function fillGrid(grid, row, col) {
+        if (row === GRID_SIZE) return true;
+
+        const nextRow = col === GRID_SIZE - 1 ? row + 1 : row;
+        const nextCol = col === GRID_SIZE - 1 ? 0 : col + 1;
+
+        const symbols = [SYMBOLS.SUN, SYMBOLS.MOON];
+        // Shuffle for randomness
+        for (let i = symbols.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [symbols[i], symbols[j]] = [symbols[j], symbols[i]];
+        }
+
+        for (const symbol of symbols) {
+          if (canPlaceSymbol(grid, row, col, symbol)) {
+            grid[row][col] = symbol;
+            if (fillGrid(grid, nextRow, nextCol)) {
+              return true;
+            }
+            grid[row][col] = "";
+          }
+        }
+
+        return false;
+      }
+
+      function canPlaceSymbol(grid, row, col, symbol) {
+        // Check if placing this symbol would create 3 in a row
+        const tempGrid = JSON.parse(JSON.stringify(grid));
+        tempGrid[row][col] = symbol;
+
+        // Check horizontal
+        if (
+          hasThreeInRow(tempGrid, row, col, 0, 1) ||
+          hasThreeInRow(tempGrid, row, col, 0, -1)
+        ) {
+          return false;
+        }
+
+        // Check vertical
+        if (
+          hasThreeInRow(tempGrid, row, col, 1, 0) ||
+          hasThreeInRow(tempGrid, row, col, -1, 0)
+        ) {
+          return false;
+        }
+
+        // Check row/col counts
+        return isValidPlacement(tempGrid, row, col, symbol);
+      }
+
+      function hasThreeInRow(grid, row, col, deltaRow, deltaCol) {
+        const symbol = grid[row][col];
+        if (!symbol) return false;
+
+        let count = 1;
+
+        // Count in positive direction
+        let r = row + deltaRow;
+        let c = col + deltaCol;
+        while (
+          r >= 0 &&
+          r < GRID_SIZE &&
+          c >= 0 &&
+          c < GRID_SIZE &&
+          grid[r][c] === symbol
+        ) {
+          count++;
+          r += deltaRow;
+          c += deltaCol;
+        }
+
+        // Count in negative direction
+        r = row - deltaRow;
+        c = col - deltaCol;
+        while (
+          r >= 0 &&
+          r < GRID_SIZE &&
+          c >= 0 &&
+          c < GRID_SIZE &&
+          grid[r][c] === symbol
+        ) {
+          count++;
+          r -= deltaRow;
+          c -= deltaCol;
+        }
+
+        return count >= 3;
+      }
+
+      function isValidPlacement(grid, row, col, symbol) {
+        // Count symbols in row
+        let rowSunCount = 0,
+          rowMoonCount = 0;
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (grid[row][c] === SYMBOLS.SUN) rowSunCount++;
+          else if (grid[row][c] === SYMBOLS.MOON) rowMoonCount++;
+        }
+
+        // Count symbols in column
+        let colSunCount = 0,
+          colMoonCount = 0;
+        for (let r = 0; r < GRID_SIZE; r++) {
+          if (grid[r][col] === SYMBOLS.SUN) colSunCount++;
+          else if (grid[r][col] === SYMBOLS.MOON) colMoonCount++;
+        }
+
+        return symbol === SYMBOLS.SUN
+          ? rowSunCount <= 3 && colSunCount <= 3
+          : rowMoonCount <= 3 && colMoonCount <= 3;
+      }
+
+      function generateHints(solution) {
+        const hints = {
+          row: Array(GRID_SIZE)
+            .fill()
+            .map(() => Array(GRID_SIZE - 1).fill(null)),
+          col: Array(GRID_SIZE - 1)
+            .fill()
+            .map(() => Array(GRID_SIZE).fill(null)),
+        };
+
+        // Add some random hints
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE - 1; c++) {
+            if (Math.random() < 0.3) {
+              // 30% chance for row hint
+              hints.row[r][c] =
+                solution[r][c] === solution[r][c + 1] ? HINTS.SAME : HINTS.DIFF;
+            }
+          }
+        }
+
+        for (let r = 0; r < GRID_SIZE - 1; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            if (Math.random() < 0.3) {
+              // 30% chance for col hint
+              hints.col[r][c] =
+                solution[r][c] === solution[r + 1][c] ? HINTS.SAME : HINTS.DIFF;
+            }
+          }
+        }
+
+        return hints;
+      }
+
+      function createStartingGrid(solution) {
+        const startGrid = Array(GRID_SIZE)
+          .fill()
+          .map(() => Array(GRID_SIZE).fill(""));
+
+        // Fill some cells randomly (about 30-40% of the grid)
+        const cellsToFill = Math.floor(GRID_SIZE * GRID_SIZE * 0.35);
+        const filledCells = new Set();
+
+        while (filledCells.size < cellsToFill) {
+          const row = Math.floor(Math.random() * GRID_SIZE);
+          const col = Math.floor(Math.random() * GRID_SIZE);
+          const key = `${row},${col}`;
+
+          if (!filledCells.has(key)) {
+            startGrid[row][col] = solution[row][col];
+            filledCells.add(key);
+          }
+        }
+
+        return startGrid;
+      }
+
+      function renderGrid() {
+        const gridElement = document.getElementById("grid");
+        gridElement.innerHTML = "";
+
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            cell.textContent = grid[r][c];
+
+            if (currentPuzzle.startGrid[r][c] !== "") {
+              cell.classList.add("initial-cell");
+            } else {
+              cell.onclick = () => handleCellClick(r, c);
+            }
+
+            // Add hints
+            if (c < GRID_SIZE - 1 && currentPuzzle.hints.row[r][c] !== null) {
+              const hint = document.createElement("div");
+              hint.className = "hint row-hint";
+              hint.textContent = currentPuzzle.hints.row[r][c];
+              cell.appendChild(hint);
+              cell.style.position = "relative";
+            }
+
+            if (r < GRID_SIZE - 1 && currentPuzzle.hints.col[r][c] !== null) {
+              const hint = document.createElement("div");
+              hint.className = "hint col-hint";
+              hint.textContent = currentPuzzle.hints.col[r][c];
+              cell.appendChild(hint);
+              cell.style.position = "relative";
+            }
+
+            gridElement.appendChild(cell);
+          }
+        }
+
+        validateGrid();
+      }
+
+      function handleCellClick(row, col) {
+        if (currentPuzzle.startGrid[row][col] !== "") return;
+
+        // Save state for undo
+        history.push(JSON.parse(JSON.stringify(grid)));
+        redoStack = [];
+
+        // Cycle through symbols
+        if (grid[row][col] === "") {
+          grid[row][col] = SYMBOLS.SUN;
+        } else if (grid[row][col] === SYMBOLS.SUN) {
+          grid[row][col] = SYMBOLS.MOON;
+        } else {
+          grid[row][col] = "";
+        }
+
+        renderGrid();
+        updateButtons();
+        checkWin();
+      }
+
+      function validateGrid() {
+        const cells = document.querySelectorAll(".cell");
+        let cellIndex = 0;
+
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            const cell = cells[cellIndex];
+            cell.classList.remove("error");
+
+            if (grid[r][c] !== "") {
+              // Check for violations
+              if (hasViolation(r, c)) {
+                cell.classList.add("error");
+              }
+            }
+
+            cellIndex++;
+          }
+        }
+      }
+
+      function hasViolation(row, col) {
+        const symbol = grid[row][col];
+        if (!symbol) return false;
+
+        // Check for 3 in a row/column
+        if (
+          hasThreeInRow(grid, row, col, 0, 1) ||
+          hasThreeInRow(grid, row, col, 1, 0)
+        ) {
+          return true;
+        }
+
+        // Check hint violations
+        if (hasHintViolation(row, col)) {
+          return true;
+        }
+
+        return false;
+      }
+
+      function hasHintViolation(row, col) {
+        const symbol = grid[row][col];
+
+        // Check row hints
+        if (col > 0 && currentPuzzle.hints.row[row][col - 1] !== null) {
+          const leftSymbol = grid[row][col - 1];
+          const hint = currentPuzzle.hints.row[row][col - 1];
+          if (
+            leftSymbol &&
+            ((hint === HINTS.SAME && symbol !== leftSymbol) ||
+              (hint === HINTS.DIFF && symbol === leftSymbol))
+          ) {
+            return true;
+          }
+        }
+
+        if (col < GRID_SIZE - 1 && currentPuzzle.hints.row[row][col] !== null) {
+          const rightSymbol = grid[row][col + 1];
+          const hint = currentPuzzle.hints.row[row][col];
+          if (
+            rightSymbol &&
+            ((hint === HINTS.SAME && symbol !== rightSymbol) ||
+              (hint === HINTS.DIFF && symbol === rightSymbol))
+          ) {
+            return true;
+          }
+        }
+
+        // Check column hints
+        if (row > 0 && currentPuzzle.hints.col[row - 1][col] !== null) {
+          const upSymbol = grid[row - 1][col];
+          const hint = currentPuzzle.hints.col[row - 1][col];
+          if (
+            upSymbol &&
+            ((hint === HINTS.SAME && symbol !== upSymbol) ||
+              (hint === HINTS.DIFF && symbol === upSymbol))
+          ) {
+            return true;
+          }
+        }
+
+        if (row < GRID_SIZE - 1 && currentPuzzle.hints.col[row][col] !== null) {
+          const downSymbol = grid[row + 1][col];
+          const hint = currentPuzzle.hints.col[row][col];
+          if (
+            downSymbol &&
+            ((hint === HINTS.SAME && symbol !== downSymbol) ||
+              (hint === HINTS.DIFF && symbol === downSymbol))
+          ) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      function checkWin() {
+        // Check if grid is completely filled
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            if (grid[r][c] === "") return;
+          }
+        }
+
+        // Check if solution is valid
+        if (isValidSolution()) {
+          clearInterval(timerInterval);
+          const timeElapsed = Math.floor((Date.now() - startTime) / 1000);
+          const puzzleScore = calculateScore(timeElapsed);
+          totalScore += puzzleScore;
+          puzzleTimes.push(timeElapsed);
+
+          if (currentPuzzleNumber < TOTAL_PUZZLES) {
+            currentPuzzleNumber++;
+            updatePuzzleInfo();
+            showStatus(
+              `🎉 Puzzle ${
+                currentPuzzleNumber - 1
+              } solved! Score: ${puzzleScore}`,
+              "success"
+            );
+            setTimeout(() => {
+              generateNewPuzzle();
+              startTimer();
+            }, 2000);
+          } else {
+            const averageTime =
+              puzzleTimes.reduce((a, b) => a + b, 0) / puzzleTimes.length;
+            showStatus(
+              `🏆 All puzzles completed! Final Score: ${totalScore} (Avg time: ${Math.round(
+                averageTime
+              )}s)`,
+              "success"
+            );
+          }
+        }
+      }
+
+      function isValidSolution() {
+        // Check for any violations
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            if (hasViolation(r, c)) return false;
+          }
+        }
+
+        // Check row and column counts
+        for (let r = 0; r < GRID_SIZE; r++) {
+          let sunCount = 0,
+            moonCount = 0;
+          for (let c = 0; c < GRID_SIZE; c++) {
+            if (grid[r][c] === SYMBOLS.SUN) sunCount++;
+            else if (grid[r][c] === SYMBOLS.MOON) moonCount++;
+          }
+          if (sunCount !== 3 || moonCount !== 3) return false;
+        }
+
+        for (let c = 0; c < GRID_SIZE; c++) {
+          let sunCount = 0,
+            moonCount = 0;
+          for (let r = 0; r < GRID_SIZE; r++) {
+            if (grid[r][c] === SYMBOLS.SUN) sunCount++;
+            else if (grid[r][c] === SYMBOLS.MOON) moonCount++;
+          }
+          if (sunCount !== 3 || moonCount !== 3) return false;
+        }
+
+        return true;
+      }
+
+      function calculateScore(timeInSeconds) {
+        // Base score decreases with time
+        // Max score is 1000, minimum is 100
+        const score = Math.max(
+          100,
+          Math.floor(BASE_SCORE * (1 - timeInSeconds / 300))
+        );
+        return score;
+      }
+
+      function updatePuzzleInfo() {
+        document.getElementById("currentPuzzle").textContent =
+          currentPuzzleNumber;
+        document.getElementById("currentScore").textContent = totalScore;
+      }
+
+      function undoMove() {
+        if (history.length > 0) {
+          redoStack.push(JSON.parse(JSON.stringify(grid)));
+          grid = history.pop();
+          renderGrid();
+          updateButtons();
+        }
+      }
+
+      function redoMove() {
+        if (redoStack.length > 0) {
+          history.push(JSON.parse(JSON.stringify(grid)));
+          grid = redoStack.pop();
+          renderGrid();
+          updateButtons();
+        }
+      }
+
+      function resetPuzzle() {
+        grid = JSON.parse(JSON.stringify(currentPuzzle.startGrid));
+        history = [];
+        redoStack = [];
+        renderGrid();
+        updateButtons();
+        hideStatus();
+        startTimer();
+      }
+
+      function updateButtons() {
+        document.getElementById("undoBtn").disabled = history.length === 0;
+        document.getElementById("redoBtn").disabled = redoStack.length === 0;
+      }
+
+      function showStatus(message, type) {
+        const status = document.getElementById("status");
+        status.textContent = message;
+        status.className = `status ${type}`;
+        status.style.display = "block";
+      }
+
+      function hideStatus() {
+        document.getElementById("status").style.display = "none";
+      }
+
+      function startTimer() {
+        startTime = Date.now();
+        clearInterval(timerInterval);
+        timerInterval = setInterval(updateTimer, 1000);
+      }
+
+      function updateTimer() {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        document.getElementById(
+          "timer"
+        ).textContent = `Time: ${minutes}:${seconds
+          .toString()
+          .padStart(2, "0")}`;
+      }
+
+      function startGame() {
+        document.getElementById("welcomeScreen").style.display = "none";
+        document.getElementById("gameScreen").style.display = "block";
+        initGame();
+      }
+
+      // Initialize game when page loads
+      window.onload = function () {
+        // Don't start the game automatically
+        // initGame will be called when start button is clicked
+      };
+    </script>
+  </body>
+</html>
