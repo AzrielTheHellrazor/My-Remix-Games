@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Dojo Dash - Enhanced</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap");
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(
+          135deg,
+          #0f0f23 0%,
+          #1a1a2e 50%,
+          #16213e 100%
+        );
+        overflow: hidden;
+        font-family: "Orbitron", monospace;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        user-select: none;
+      }
+
+      canvas {
+        display: block;
+        background: radial-gradient(
+          circle at center,
+          #2d3436 0%,
+          #636e72 40%,
+          #74b9ff 100%
+        );
+        max-width: 100%;
+        max-height: 100vh;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5),
+          inset 0 0 50px rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+      }
+
+      #startScreen {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        font-size: 16px;
+        background: linear-gradient(
+          135deg,
+          rgba(0, 0, 0, 0.9) 0%,
+          rgba(26, 26, 46, 0.95) 100%
+        );
+        padding: 25px;
+        border-radius: 20px;
+        text-align: center;
+        max-width: 85%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(116, 185, 255, 0.3);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+        animation: glow 2s ease-in-out infinite alternate;
+      }
+
+      @keyframes glow {
+        from {
+          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6),
+            0 0 20px rgba(116, 185, 255, 0.3);
+        }
+        to {
+          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8),
+            0 0 30px rgba(116, 185, 255, 0.6);
+        }
+      }
+
+      #startScreen h2 {
+        margin: 0 0 15px 0;
+        font-size: 28px;
+        font-weight: 900;
+        background: linear-gradient(45deg, #74b9ff, #00cec9);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 20px rgba(116, 185, 255, 0.5);
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      #startScreen p,
+      #startScreen ul {
+        margin: 8px 0;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      }
+
+      #startScreen ul {
+        padding-left: 25px;
+        text-align: left;
+      }
+
+      #startScreen button {
+        margin-top: 20px;
+        padding: 12px 25px;
+        font-size: 16px;
+        font-weight: 700;
+        background: linear-gradient(45deg, #74b9ff, #00cec9);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(116, 185, 255, 0.4);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      #startScreen button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(116, 185, 255, 0.6);
+        background: linear-gradient(45deg, #00cec9, #74b9ff);
+      }
+
+      @media (max-width: 480px) {
+        #startScreen {
+          font-size: 14px;
+          padding: 20px;
+          max-width: 90%;
+        }
+        #startScreen h2 {
+          font-size: 24px;
+        }
+        #startScreen button {
+          font-size: 14px;
+          padding: 10px 20px;
+        }
+      }
+
+      @media (min-width: 481px) and (max-width: 768px) {
+        #startScreen {
+          font-size: 15px;
+          padding: 22px;
+        }
+        #startScreen h2 {
+          font-size: 26px;
+        }
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
+  </head>
+  <body>
+    <canvas id="gameCanvas"></canvas>
+    <audio id="backgroundMusic" loop>
+      <source
+        src="https://lqy3lriiybxcejon.public.blob.vercel-storage.com/72f4f68a-da20-44a7-a162-af9e5cd962a7/Naruto%20-%20The%20Raising%20Fighting%20Spirit%20%5B8-bit%3B%20VRC6%5D-73XK5oZ0bBrUoFLVy6D0gQFtOMN4JE.mp3"
+        type="audio/mpeg"
+      />
+    </audio>
+    <div id="startScreen">
+      <h2>🥋 DOJO DASH 🥋</h2>
+      <p>⚡ Hit the glowing target to score points and build epic combos! ⚡</p>
+      <p><strong>Controls:</strong></p>
+      <ul>
+        <li>
+          🖥️ <strong>Desktop:</strong> Arrow Right/D to move, Space/Enter to
+          strike
+        </li>
+        <li>
+          📱 <strong>Mobile:</strong> Tap MOVE to rotate, STRIKE to attack
+        </li>
+      </ul>
+      <p>🎯 Ready to become a martial arts master? 🎯</p>
+      <button onclick="startGame()">⚡ START TRAINING ⚡</button>
+    </div>
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const DPR = window.devicePixelRatio || 1;
+      const startScreen = document.getElementById("startScreen");
+
+      // Mobile detection
+      const isMobile =
+        /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        );
+
+      // Responsive canvas sizing
+      function resizeCanvas() {
+        const aspectRatio = 9 / 16;
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        if (width / height > aspectRatio) {
+          width = height * aspectRatio;
+        } else {
+          height = width / aspectRatio;
+        }
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        canvas.width = width * DPR;
+        canvas.height = height * DPR;
+        ctx.scale(DPR, DPR);
+        scale = Math.min(width / 360, height / 640);
+      }
+
+      let scale = 1;
+      resizeCanvas();
+      window.addEventListener("resize", resizeCanvas);
+
+      // Background music control
+      const bgMusic = document.getElementById("backgroundMusic");
+      bgMusic.volume = 0.4;
+
+      // Farcade SDK initialization
+      if (window.FarcadeSDK) {
+        window.FarcadeSDK.singlePlayer.actions.ready();
+        console.log("Farcade SDK ready event triggered.");
+      } else {
+        console.error("Farcade SDK not loaded.");
+      }
+
+      // Game state
+      const positions = 8;
+      const posY = [];
+      const centerX = 180;
+      const radius = 120;
+      let selectedPos = 0;
+      let bagPos = Math.floor(Math.random() * positions);
+      let score = 0;
+      let combo = 0;
+      let maxCombo = 0;
+      let timer = 60 * 1000;
+      let penalty = 0;
+      let floatingTexts = [];
+      let particles = [];
+      let startTime = null;
+      let lastFrame = performance.now();
+      let gameOver = false;
+      let animationTime = 0;
+      let characterScale = 1;
+      let bagScale = 1;
+      let hitAnimation = 0;
+      let missAnimation = 0;
+      let comboMultiplier = 1;
+
+      // Particle system
+      class Particle {
+        constructor(x, y, color, velocity = { x: 0, y: 0 }, life = 60) {
+          this.x = x;
+          this.y = y;
+          this.vx = velocity.x + (Math.random() - 0.5) * 4;
+          this.vy = velocity.y + (Math.random() - 0.5) * 4;
+          this.color = color;
+          this.life = life;
+          this.maxLife = life;
+          this.size = Math.random() * 4 + 2;
+        }
+
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          this.vy += 0.1; // gravity
+          this.vx *= 0.98; // air resistance
+          this.life--;
+          return this.life > 0;
+        }
+
+        draw() {
+          ctx.save();
+          ctx.scale(scale, scale);
+          const alpha = this.life / this.maxLife;
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = this.color;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size * alpha, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // Setup position coordinates
+      for (let i = 0; i < positions; i++) {
+        let angle = (i / positions) * Math.PI * 2;
+        posY.push({
+          x: centerX + Math.sin(angle) * radius,
+          y: 350 + Math.cos(angle) * radius,
+        });
+      }
+
+      // Reset game state
+      function resetGame() {
+        selectedPos = 0;
+        bagPos = Math.floor(Math.random() * positions);
+        score = 0;
+        combo = 0;
+        maxCombo = 0;
+        penalty = 0;
+        floatingTexts = [];
+        particles = [];
+        startTime = performance.now();
+        gameOver = false;
+        animationTime = 0;
+        characterScale = 1;
+        bagScale = 1;
+        hitAnimation = 0;
+        missAnimation = 0;
+        comboMultiplier = 1;
+        bgMusic.play().catch((e) => console.log("Music playback error:", e));
+        console.log("Game reset and started.");
+      }
+
+      // Enhanced controls
+      window.addEventListener("keydown", (e) => {
+        if (startTime && !gameOver) {
+          if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") move();
+          if (e.key === " " || e.key === "Enter") {
+            e.preventDefault();
+            strike();
+          }
+        }
+      });
+
+      canvas.addEventListener("touchstart", handleTouch);
+      canvas.addEventListener("click", handleClick);
+
+      function handleTouch(e) {
+        e.preventDefault();
+        if (!startTime) {
+          startGame();
+        } else if (startTime && !gameOver) {
+          const rect = canvas.getBoundingClientRect();
+          const x = (e.touches[0].clientX - rect.left) / scale;
+          const y = (e.touches[0].clientY - rect.top) / scale;
+          if (y > 500) {
+            if (x >= 50 && x <= 170) move();
+            if (x >= 190 && x <= 310) strike();
+          }
+        }
+      }
+
+      function handleClick(e) {
+        if (!startTime) {
+          startGame();
+        } else if (startTime && !gameOver) {
+          const rect = canvas.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / scale;
+          const y = (e.clientY - rect.top) / scale;
+          if (y > 500) {
+            if (x >= 50 && x <= 170) move();
+            if (x >= 190 && x <= 310) strike();
+          }
+        }
+      }
+
+      function move() {
+        if (!gameOver) {
+          selectedPos = (selectedPos + 1) % positions;
+          characterScale = 1.2;
+
+          // Movement particles
+          for (let i = 0; i < 5; i++) {
+            particles.push(
+              new Particle(
+                posY[selectedPos].x,
+                posY[selectedPos].y,
+                `hsl(${200 + Math.random() * 60}, 70%, 60%)`,
+                { x: (Math.random() - 0.5) * 6, y: (Math.random() - 0.5) * 6 },
+                30
+              )
+            );
+          }
+        }
+      }
+
+      function strike() {
+        if (!gameOver) {
+          if (selectedPos === bagPos) {
+            // Hit!
+            comboMultiplier = Math.min(5, 1 + combo * 0.1);
+            const points = Math.floor(10 * comboMultiplier);
+            score += points;
+            combo++;
+            maxCombo = Math.max(maxCombo, combo);
+
+            hitAnimation = 20;
+            bagScale = 1.5;
+
+            // Hit particles explosion
+            for (let i = 0; i < 15; i++) {
+              particles.push(
+                new Particle(
+                  posY[bagPos].x,
+                  posY[bagPos].y,
+                  `hsl(${Math.random() * 60 + 10}, 100%, 60%)`,
+                  {
+                    x: (Math.random() - 0.5) * 12,
+                    y: (Math.random() - 0.5) * 12 - 3,
+                  },
+                  45
+                )
+              );
+            }
+
+            floatingTexts.push({
+              x: posY[bagPos].x,
+              y: posY[bagPos].y - 20,
+              text: `+${points} 🔥 ${combo}x COMBO!`,
+              life: 45,
+              color: `hsl(${Math.random() * 60 + 10}, 100%, 60%)`,
+              scale: 1.5,
+            });
+
+            bagPos = Math.floor(Math.random() * positions);
+            if ("vibrate" in navigator) navigator.vibrate(100);
+            if (window.FarcadeSDK)
+              window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+          } else {
+            // Miss!
+            combo = 0;
+            penalty += 3000; // Reduced penalty
+            missAnimation = 15;
+
+            // Miss particles
+            for (let i = 0; i < 8; i++) {
+              particles.push(
+                new Particle(
+                  posY[selectedPos].x,
+                  posY[selectedPos].y,
+                  `hsl(0, 80%, 60%)`,
+                  {
+                    x: (Math.random() - 0.5) * 8,
+                    y: (Math.random() - 0.5) * 8,
+                  },
+                  35
+                )
+              );
+            }
+
+            floatingTexts.push({
+              x: posY[selectedPos].x,
+              y: posY[selectedPos].y - 15,
+              text: "💥 MISS -3s",
+              life: 35,
+              color: "#ff6b6b",
+              scale: 1.2,
+            });
+
+            if ("vibrate" in navigator) navigator.vibrate([100, 50, 100]);
+            if (window.FarcadeSDK)
+              window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+          }
+        }
+      }
+
+      function drawBackground() {
+        ctx.save();
+        ctx.scale(scale, scale);
+
+        // Animated background rings
+        for (let i = 0; i < 3; i++) {
+          ctx.beginPath();
+          ctx.arc(
+            centerX,
+            350,
+            50 + i * 40 + Math.sin(animationTime * 0.01 + i) * 5,
+            0,
+            Math.PI * 2
+          );
+          ctx.strokeStyle = `rgba(116, 185, 255, ${0.1 - i * 0.02})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function drawCharacter(x, y) {
+        ctx.save();
+        ctx.scale(scale * characterScale, scale * characterScale);
+
+        // Character shadow
+        ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+        ctx.beginPath();
+        ctx.ellipse(
+          x / characterScale,
+          (y + 25) / characterScale,
+          12,
+          4,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Naruto body - orange jacket
+        const bodyGradient = ctx.createLinearGradient(
+          0,
+          (y - 30) / characterScale,
+          0,
+          y / characterScale
+        );
+        bodyGradient.addColorStop(0, "#ff6b35");
+        bodyGradient.addColorStop(0.5, "#ff8500");
+        bodyGradient.addColorStop(1, "#cc6600");
+        ctx.fillStyle = bodyGradient;
+        ctx.fillRect(
+          (x - 12) / characterScale,
+          (y - 25) / characterScale,
+          24,
+          25
+        );
+
+        // Orange jacket details - darker orange stripes
+        ctx.fillStyle = "#cc6600";
+        ctx.fillRect(
+          (x - 12) / characterScale,
+          (y - 20) / characterScale,
+          24,
+          2
+        );
+        ctx.fillRect(
+          (x - 12) / characterScale,
+          (y - 10) / characterScale,
+          24,
+          2
+        );
+
+        // Blue pants
+        ctx.fillStyle = "#2d5aa0";
+        ctx.fillRect(
+          (x - 10) / characterScale,
+          (y - 5) / characterScale,
+          20,
+          8
+        );
+
+        // Naruto head - skin tone
+        ctx.fillStyle = "#fdbcb4";
+        ctx.beginPath();
+        ctx.arc(
+          x / characterScale,
+          (y - 35) / characterScale,
+          10,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Blonde spiky hair
+        ctx.fillStyle = "#ffd700";
+        ctx.beginPath();
+        // Hair spikes
+        ctx.arc(
+          (x - 8) / characterScale,
+          (y - 42) / characterScale,
+          4,
+          0,
+          Math.PI * 2
+        );
+        ctx.arc(
+          (x - 3) / characterScale,
+          (y - 45) / characterScale,
+          5,
+          0,
+          Math.PI * 2
+        );
+        ctx.arc(
+          (x + 3) / characterScale,
+          (y - 45) / characterScale,
+          5,
+          0,
+          Math.PI * 2
+        );
+        ctx.arc(
+          (x + 8) / characterScale,
+          (y - 42) / characterScale,
+          4,
+          0,
+          Math.PI * 2
+        );
+        ctx.arc(
+          x / characterScale,
+          (y - 46) / characterScale,
+          4,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Naruto's headband - forehead protector
+        ctx.fillStyle = "#2d3436";
+        ctx.fillRect(
+          (x - 9) / characterScale,
+          (y - 40) / characterScale,
+          18,
+          4
+        );
+
+        // Leaf village symbol on headband
+        ctx.fillStyle = "#74b9ff";
+        ctx.font = `${8 / characterScale}px Arial`;
+        ctx.textAlign = "center";
+        ctx.fillText("🍃", x / characterScale, (y - 36) / characterScale);
+
+        // Naruto's eyes - blue
+        ctx.fillStyle = "#0984e3";
+        ctx.beginPath();
+        ctx.arc(
+          (x - 4) / characterScale,
+          (y - 35) / characterScale,
+          2,
+          0,
+          Math.PI * 2
+        );
+        ctx.arc(
+          (x + 4) / characterScale,
+          (y - 35) / characterScale,
+          2,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Eye pupils
+        ctx.fillStyle = "#2d3436";
+        ctx.beginPath();
+        ctx.arc(
+          (x - 4) / characterScale,
+          (y - 35) / characterScale,
+          1,
+          0,
+          Math.PI * 2
+        );
+        ctx.arc(
+          (x + 4) / characterScale,
+          (y - 35) / characterScale,
+          1,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Whisker marks on cheeks
+        ctx.strokeStyle = "#2d3436";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        // Left whiskers
+        ctx.moveTo((x - 8) / characterScale, (y - 35) / characterScale);
+        ctx.lineTo((x - 6) / characterScale, (y - 35) / characterScale);
+        ctx.moveTo((x - 8) / characterScale, (y - 32) / characterScale);
+        ctx.lineTo((x - 6) / characterScale, (y - 32) / characterScale);
+        ctx.moveTo((x - 8) / characterScale, (y - 38) / characterScale);
+        ctx.lineTo((x - 6) / characterScale, (y - 38) / characterScale);
+        // Right whiskers
+        ctx.moveTo((x + 6) / characterScale, (y - 35) / characterScale);
+        ctx.lineTo((x + 8) / characterScale, (y - 35) / characterScale);
+        ctx.moveTo((x + 6) / characterScale, (y - 32) / characterScale);
+        ctx.lineTo((x + 8) / characterScale, (y - 32) / characterScale);
+        ctx.moveTo((x + 6) / characterScale, (y - 38) / characterScale);
+        ctx.lineTo((x + 8) / characterScale, (y - 38) / characterScale);
+        ctx.stroke();
+
+        // Strike animation - chakra aura
+        if (hitAnimation > 0) {
+          const auraGradient = ctx.createRadialGradient(
+            x / characterScale,
+            (y - 20) / characterScale,
+            0,
+            x / characterScale,
+            (y - 20) / characterScale,
+            25
+          );
+          auraGradient.addColorStop(0, "rgba(0, 184, 255, 0.6)");
+          auraGradient.addColorStop(1, "rgba(0, 184, 255, 0)");
+          ctx.fillStyle = auraGradient;
+          ctx.beginPath();
+          ctx.arc(
+            x / characterScale,
+            (y - 20) / characterScale,
+            25,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+
+          ctx.strokeStyle = "#00b8ff";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(
+            x / characterScale,
+            (y - 10) / characterScale,
+            20,
+            0,
+            Math.PI * 2
+          );
+          ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Update scales
+        characterScale = Math.max(1, characterScale - 0.02);
+      }
+
+      function drawBag(x, y) {
+        ctx.save();
+        ctx.scale(scale * bagScale, scale * bagScale);
+
+        // Bag shadow
+        ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+        ctx.beginPath();
+        ctx.ellipse(
+          x / bagScale,
+          (y + 20) / bagScale,
+          10,
+          3,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Glowing effect
+        const glowGradient = ctx.createRadialGradient(
+          x / bagScale,
+          y / bagScale,
+          0,
+          x / bagScale,
+          y / bagScale,
+          25
+        );
+        glowGradient.addColorStop(0, "rgba(255, 107, 107, 0.8)");
+        glowGradient.addColorStop(0.7, "rgba(255, 107, 107, 0.3)");
+        glowGradient.addColorStop(1, "rgba(255, 107, 107, 0)");
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.arc(x / bagScale, y / bagScale, 25, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Main bag
+        const bagGradient = ctx.createRadialGradient(
+          (x - 5) / bagScale,
+          (y - 5) / bagScale,
+          0,
+          x / bagScale,
+          y / bagScale,
+          15
+        );
+        bagGradient.addColorStop(0, "#ff7675");
+        bagGradient.addColorStop(1, "#d63031");
+        ctx.fillStyle = bagGradient;
+        ctx.beginPath();
+        ctx.arc(x / bagScale, y / bagScale, 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bag highlight
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.beginPath();
+        ctx.arc((x - 4) / bagScale, (y - 4) / bagScale, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+
+        bagScale = Math.max(1, bagScale - 0.03);
+      }
+
+      function drawUI() {
+        ctx.save();
+        ctx.scale(scale, scale);
+
+        // UI Background
+        const uiGradient = ctx.createLinearGradient(0, 0, 0, 50);
+        uiGradient.addColorStop(0, "rgba(0, 0, 0, 0.9)");
+        uiGradient.addColorStop(1, "rgba(0, 0, 0, 0.7)");
+        ctx.fillStyle = uiGradient;
+        ctx.fillRect(0, 0, 360, 50);
+
+        // UI Border
+        ctx.strokeStyle = "rgba(116, 185, 255, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, 360, 50);
+
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 14px Orbitron, monospace";
+        ctx.textShadow = "0 0 10px rgba(116, 185, 255, 0.8)";
+
+        // Score with glow effect
+        ctx.shadowColor = "#74b9ff";
+        ctx.shadowBlur = 10;
+        ctx.fillText(`💰 ${score}`, 10, 20);
+
+        // Combo with color based on value
+        const comboColor =
+          combo > 10 ? "#00b894" : combo > 5 ? "#fdcb6e" : "#74b9ff";
+        ctx.fillStyle = comboColor;
+        ctx.fillText(`🔥 ${combo}x`, 10, 35);
+
+        // Max combo
+        ctx.fillStyle = "#e17055";
+        ctx.fillText(`⭐ Best: ${maxCombo}x`, 120, 20);
+
+        // Time with urgency color
+        const timeLeft =
+          Math.max(0, timer - penalty - (performance.now() - startTime)) / 1000;
+        ctx.fillStyle =
+          timeLeft < 10 ? "#e17055" : timeLeft < 30 ? "#fdcb6e" : "#00b894";
+        ctx.fillText(`⏰ ${timeLeft.toFixed(1)}s`, 120, 35);
+
+        // Multiplier indicator
+        if (comboMultiplier > 1) {
+          ctx.fillStyle = "#00b894";
+          ctx.font = "bold 12px Orbitron, monospace";
+          ctx.fillText(`${comboMultiplier.toFixed(1)}x MULTIPLIER!`, 250, 30);
+        }
+
+        ctx.restore();
+      }
+
+      function drawButtons() {
+        if (isMobile) {
+          ctx.save();
+          ctx.scale(scale, scale);
+
+          // Button backgrounds with gradients
+          const moveGradient = ctx.createLinearGradient(50, 500, 50, 580);
+          moveGradient.addColorStop(0, "#74b9ff");
+          moveGradient.addColorStop(1, "#0984e3");
+
+          const strikeGradient = ctx.createLinearGradient(190, 500, 190, 580);
+          strikeGradient.addColorStop(0, "#00b894");
+          strikeGradient.addColorStop(1, "#00a085");
+
+          // MOVE button
+          ctx.fillStyle = moveGradient;
+          ctx.beginPath();
+          ctx.roundRect(50, 500, 120, 80, 20);
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // STRIKE button
+          ctx.fillStyle = strikeGradient;
+          ctx.beginPath();
+          ctx.roundRect(190, 500, 120, 80, 20);
+          ctx.fill();
+          ctx.stroke();
+
+          // Button text with shadows
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 16px Orbitron, monospace";
+          ctx.textAlign = "center";
+          ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+          ctx.shadowBlur = 5;
+          ctx.fillText("🔄 MOVE", 110, 530);
+          ctx.fillText("👊 STRIKE", 250, 530);
+
+          // Button icons
+          ctx.font = "24px Orbitron, monospace";
+          ctx.fillText("↻", 110, 555);
+          ctx.fillText("⚡", 250, 555);
+
+          ctx.restore();
+        }
+      }
+
+      function drawPositions() {
+        ctx.save();
+        ctx.scale(scale, scale);
+
+        for (let i = 0; i < positions; i++) {
+          const isSelected = i === selectedPos;
+
+          // Position glow
+          if (isSelected) {
+            const glowGradient = ctx.createRadialGradient(
+              posY[i].x,
+              posY[i].y,
+              0,
+              posY[i].x,
+              posY[i].y,
+              35
+            );
+            glowGradient.addColorStop(0, "rgba(116, 185, 255, 0.6)");
+            glowGradient.addColorStop(1, "rgba(116, 185, 255, 0)");
+            ctx.fillStyle = glowGradient;
+            ctx.beginPath();
+            ctx.arc(posY[i].x, posY[i].y, 35, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Position circle
+          ctx.beginPath();
+          ctx.arc(posY[i].x, posY[i].y, 25, 0, Math.PI * 2);
+          ctx.strokeStyle = isSelected ? "#74b9ff" : "rgba(255, 255, 255, 0.3)";
+          ctx.lineWidth = isSelected ? 4 : 2;
+          ctx.stroke();
+
+          if (isSelected) {
+            ctx.fillStyle = "rgba(116, 185, 255, 0.2)";
+            ctx.fill();
+          }
+        }
+
+        ctx.restore();
+      }
+
+      function updateFloatingTexts() {
+        floatingTexts = floatingTexts.filter((t) => {
+          t.life--;
+          t.y -= 1;
+          return t.life > 0;
+        });
+
+        ctx.save();
+        ctx.scale(scale, scale);
+        for (let f of floatingTexts) {
+          const alpha = f.life / (f.life + 15);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = f.color || "#00b894";
+          ctx.font = `bold ${14 * (f.scale || 1)}px Orbitron, monospace`;
+          ctx.textAlign = "center";
+          ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+          ctx.shadowBlur = 8;
+          ctx.fillText(f.text, f.x, f.y);
+        }
+        ctx.restore();
+      }
+
+      function updateParticles() {
+        particles = particles.filter((particle) => {
+          particle.update();
+          particle.draw();
+          return particle.life > 0;
+        });
+      }
+
+      function render() {
+        const now = performance.now();
+        const dt = now - lastFrame;
+        lastFrame = now;
+        animationTime = now;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawBackground();
+        drawPositions();
+        drawCharacter(posY[selectedPos].x, posY[selectedPos].y);
+        drawBag(posY[bagPos].x, posY[bagPos].y);
+        updateParticles();
+        drawUI();
+        drawButtons();
+        updateFloatingTexts();
+
+        // Update animations
+        if (hitAnimation > 0) hitAnimation--;
+        if (missAnimation > 0) missAnimation--;
+
+        if (
+          startTime &&
+          !gameOver &&
+          performance.now() - startTime + penalty < timer
+        ) {
+          requestAnimationFrame(render);
+        } else if (startTime && !gameOver) {
+          gameOver = true;
+          if (window.FarcadeSDK)
+            window.FarcadeSDK.singlePlayer.actions.gameOver({ score: score });
+          bgMusic.pause();
+        }
+      }
+
+      // Farcade SDK event handlers
+      if (window.FarcadeSDK) {
+        window.FarcadeSDK.on("play_again", () => {
+          resetGame();
+          render();
+        });
+
+        window.FarcadeSDK.on("toggle_mute", (data) => {
+          bgMusic.muted = data.isMuted;
+        });
+      }
+
+      // Start game on first interaction
+      function startGame() {
+        if (!startTime) {
+          startTime = performance.now();
+          bgMusic.play().catch((e) => console.log("Music playback error:", e));
+          startScreen.style.display = "none";
+          render();
+          console.log("Game started via user interaction.");
+        }
+      }
+
+      canvas.addEventListener("click", startGame);
+      canvas.addEventListener("touchstart", (e) => {
+        if (!startTime) {
+          e.preventDefault();
+          startGame();
+        }
+      });
+
+      // Screen shake effect for hits
+      function screenShake() {
+        if (hitAnimation > 15) {
+          const intensity = 2;
+          canvas.style.transform = `translate(${
+            (Math.random() - 0.5) * intensity
+          }px, ${(Math.random() - 0.5) * intensity}px)`;
+          setTimeout(() => {
+            canvas.style.transform = "translate(0, 0)";
+          }, 50);
+        }
+      }
+
+      // Power-up system (visual indicators)
+      function drawPowerUpIndicators() {
+        if (combo >= 5) {
+          ctx.save();
+          ctx.scale(scale, scale);
+
+          // Fire mode indicator
+          const fireGradient = ctx.createRadialGradient(
+            30,
+            100,
+            0,
+            30,
+            100,
+            20
+          );
+          fireGradient.addColorStop(0, "rgba(255, 107, 107, 0.8)");
+          fireGradient.addColorStop(1, "rgba(255, 107, 107, 0.2)");
+          ctx.fillStyle = fireGradient;
+          ctx.beginPath();
+          ctx.arc(30, 100, 20, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 12px Orbitron, monospace";
+          ctx.textAlign = "center";
+          ctx.fillText("🔥", 30, 105);
+
+          ctx.restore();
+        }
+
+        if (combo >= 10) {
+          ctx.save();
+          ctx.scale(scale, scale);
+
+          // Lightning mode indicator
+          const lightningGradient = ctx.createRadialGradient(
+            330,
+            100,
+            0,
+            330,
+            100,
+            20
+          );
+          lightningGradient.addColorStop(0, "rgba(255, 215, 0, 0.8)");
+          lightningGradient.addColorStop(1, "rgba(255, 215, 0, 0.2)");
+          ctx.fillStyle = lightningGradient;
+          ctx.beginPath();
+          ctx.arc(330, 100, 20, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 12px Orbitron, monospace";
+          ctx.textAlign = "center";
+          ctx.fillText("⚡", 330, 105);
+
+          ctx.restore();
+        }
+      }
+
+      // Enhanced render function with power-up indicators
+      function enhancedRender() {
+        const now = performance.now();
+        const dt = now - lastFrame;
+        lastFrame = now;
+        animationTime = now;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawBackground();
+        drawPositions();
+        drawCharacter(posY[selectedPos].x, posY[selectedPos].y);
+        drawBag(posY[bagPos].x, posY[bagPos].y);
+        updateParticles();
+        drawPowerUpIndicators();
+        drawUI();
+        drawButtons();
+        updateFloatingTexts();
+        screenShake();
+
+        // Update animations
+        if (hitAnimation > 0) hitAnimation--;
+        if (missAnimation > 0) missAnimation--;
+
+        if (
+          startTime &&
+          !gameOver &&
+          performance.now() - startTime + penalty < timer
+        ) {
+          requestAnimationFrame(enhancedRender);
+        } else if (startTime && !gameOver) {
+          gameOver = true;
+          if (window.FarcadeSDK)
+            window.FarcadeSDK.singlePlayer.actions.gameOver({ score: score });
+          bgMusic.pause();
+        }
+      }
+
+      // Replace render calls with enhancedRender
+      window.FarcadeSDK &&
+        window.FarcadeSDK.on("play_again", () => {
+          resetGame();
+          enhancedRender();
+        });
+
+      // Initial render to show start state
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackground();
+      drawPositions();
+
+      // Show demo character and bag
+      drawCharacter(posY[0].x, posY[0].y);
+      drawBag(posY[2].x, posY[2].y);
+
+      // Update startGame function to use enhancedRender
+      function startGame() {
+        if (!startTime) {
+          startTime = performance.now();
+          bgMusic.play().catch((e) => console.log("Music playback error:", e));
+          startScreen.style.display = "none";
+          enhancedRender();
+          console.log("Game started via user interaction.");
+        }
+      }
+    </script>
+  </body>
+</html>
