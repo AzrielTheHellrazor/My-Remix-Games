@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dragon Palm - Enhanced</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap");
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        background: #1a1a1a;
+        font-family: "Orbitron", monospace;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        image-rendering: optimizeSpeed;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: optimize-contrast;
+        image-rendering: pixelated;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      .ui-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 10;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .combo-indicator {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 60px;
+        font-weight: 900;
+        color: #fff;
+        opacity: 0;
+        pointer-events: none;
+        text-shadow: 0 0 20px currentColor;
+        animation: comboFlash 0.5s ease-out;
+      }
+
+      @keyframes comboFlash {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.5);
+        }
+        50% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1.2);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
+  </head>
+  <body>
+    <canvas id="gameCanvas"></canvas>
+    <div class="ui-overlay">
+      <div class="combo-indicator" id="comboIndicator"></div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const comboIndicator = document.getElementById("comboIndicator");
+
+      // Enhanced canvas setup for 9:16 mobile
+      function resize() {
+        const aspectRatio = 9 / 16;
+        let w = window.innerWidth;
+        let h = window.innerHeight;
+
+        // Ekran oranını hesapla
+        const screenRatio = w / h;
+
+        if (screenRatio > aspectRatio) {
+          // Ekran daha geniş, yüksekliğe göre ayarla
+          h = w / aspectRatio;
+        } else {
+          // Ekran daha dar, genişliğe göre ayarla
+          w = h * aspectRatio;
+        }
+
+        // Canvas boyutlarını ayarla
+        canvas.width = w;
+        canvas.height = h;
+
+        // Mobil cihazlar için performans optimizasyonu
+        if (window.innerWidth <= 768) {
+          const scale = Math.min(1, 720 / w);
+          canvas.style.transform = `scale(${scale})`;
+        } else {
+          canvas.style.transform = "none";
+        }
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      // Load anime background
+      const bgImage = new Image();
+      bgImage.src =
+        "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?q=80&w=2071&auto=format&fit=crop";
+      let bgLoaded = false;
+      bgImage.onload = () => {
+        bgLoaded = true;
+      };
+
+      // Alternative anime backgrounds to try if first fails
+      const altBgUrls = [
+        "https://images.unsplash.com/photo-1518893063132-36e46dbe2428?q=80&w=2070&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1559981421-3e0c0d712e3b?q=80&w=2095&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1528360983277-13d401cdc186?q=80&w=2070&auto=format&fit=crop",
+      ];
+
+      let currentBgIndex = 0;
+      bgImage.onerror = () => {
+        if (currentBgIndex < altBgUrls.length) {
+          bgImage.src = altBgUrls[currentBgIndex++];
+        }
+      };
+
+      // Game state
+      let gameState = "menu";
+      let score = 0;
+      let combo = 0;
+      let maxCombo = 0;
+      let health = 100;
+      let maxHealth = 100;
+      let kills = 0;
+      let time = 0;
+      let gameSpeed = 1;
+      let perfectHits = 0;
+      let misses = 0;
+      let difficulty = 1;
+
+      // Mobil cihaz kontrolü
+      const isMobile = window.innerWidth <= 768;
+
+      // Mobil cihazlar için hız ayarlamaları
+      const MOBILE_SPEED_MULTIPLIER = 1.5;
+      const MOBILE_SPAWN_RATE = 1.3;
+
+      // Camera shake
+      let cameraShake = { x: 0, y: 0, intensity: 0 };
+
+      // Slow motion effect
+      let slowMotion = { active: false, timer: 0, factor: 0.3 };
+
+      // Player state
+      const player = {
+        x: canvas.width / 2,
+        y: canvas.height * 0.6,
+        size: 60,
+        attacking: false,
+        attackSide: null,
+        attackTime: 0,
+        attackRange: 180,
+        invulnerable: false,
+        invulnerableTime: 0,
+        stance: 0,
+        stanceTime: 0,
+        hitStreak: 0,
+        powerMode: false,
+        powerTime: 0,
+        cooldown: 0,
+        missStreak: 0,
+      };
+
+      // Collections
+      let enemies = [];
+      let particles = [];
+      let bloodEffects = [];
+      let hitEffects = [];
+      let powerups = [];
+
+      // Enemy types
+      const enemyTypes = {
+        basic: {
+          speed: isMobile ? 3 : 2,
+          health: 1,
+          color: "#ff4444",
+          points: 10,
+          size: isMobile ? 40 : 50,
+        },
+        fast: {
+          speed: isMobile ? 6 : 4,
+          health: 1,
+          color: "#ffaa44",
+          points: 15,
+          size: isMobile ? 35 : 45,
+        },
+        heavy: {
+          speed: isMobile ? 2.5 : 1.5,
+          health: 2,
+          color: "#aa44ff",
+          points: 25,
+          size: isMobile ? 55 : 65,
+        },
+        ninja: {
+          speed: isMobile ? 4.5 : 3,
+          health: 1,
+          color: "#44aaff",
+          points: 20,
+          size: isMobile ? 38 : 48,
+          dodgeChance: 0.3,
+        },
+      };
+
+      class Enemy {
+        constructor(side, type = "basic") {
+          this.type = type;
+          const config = enemyTypes[type];
+          this.side = side;
+          this.x = side === "left" ? -100 : canvas.width + 100;
+          this.y = player.y;
+          this.size = config.size;
+          this.baseSpeed = config.speed;
+          this.speed = this.baseSpeed;
+          this.health = config.health;
+          this.maxHealth = config.health;
+          this.color = config.color;
+          this.points = config.points;
+          this.dodgeChance = config.dodgeChance || 0;
+
+          this.dead = false;
+          this.dying = false;
+          this.deathTime = 0;
+          this.hitStun = 0;
+          this.knockback = 0;
+          this.rotation = 0;
+          this.scale = 1;
+          this.opacity = 1;
+
+          // Animation states
+          this.walkCycle = Math.random() * Math.PI * 2;
+          this.armSwing = 0;
+          this.targetX = player.x;
+
+          // Attack warning
+          this.attackWarning = false;
+          this.warningTime = 0;
+          this.attackRange = 100;
+        }
+
+        update() {
+          if (this.dying) {
+            this.deathTime++;
+            this.opacity = Math.max(0, 1 - this.deathTime / 30);
+            this.y += this.knockback * 0.5;
+            this.knockback *= 0.9;
+            this.rotation += this.side === "left" ? 0.2 : -0.2;
+            return this.opacity <= 0;
+          }
+
+          // Apply slow motion
+          const speedMod = slowMotion.active ? slowMotion.factor : 1;
+
+          // Hit stun
+          if (this.hitStun > 0) {
+            this.hitStun -= speedMod;
+            this.x += this.knockback;
+            this.knockback *= 0.85;
+            return false;
+          }
+
+          // Movement
+          const dx = this.targetX - this.x;
+          const distance = Math.abs(dx);
+
+          if (distance > this.attackRange) {
+            this.x += Math.sign(dx) * this.speed * speedMod;
+            this.walkCycle += 0.15 * speedMod;
+            this.armSwing = Math.sin(this.walkCycle * 2) * 0.3;
+          } else if (!this.attackWarning) {
+            // Start attack warning
+            this.attackWarning = true;
+            this.warningTime = 30;
+          }
+
+          // Attack warning countdown
+          if (this.attackWarning) {
+            this.warningTime -= speedMod;
+            if (this.warningTime <= 0) {
+              // Attack player
+              if (!player.invulnerable && distance <= this.attackRange) {
+                this.performAttack();
+              }
+              this.dying = true;
+              this.deathTime = 0;
+            }
+          }
+
+          return false;
+        }
+
+        performAttack() {
+          health -= 10;
+          combo = 0;
+          misses++;
+          player.invulnerable = true;
+          player.invulnerableTime = 60;
+
+          // Screen effects
+          cameraShake.intensity = 20;
+          createBloodSplatter(player.x, player.y);
+
+          // Slow motion on hit
+          slowMotion.active = true;
+          slowMotion.timer = 15;
+        }
+
+        draw() {
+          ctx.save();
+          ctx.globalAlpha = this.opacity;
+          ctx.translate(this.x + cameraShake.x, this.y + cameraShake.y);
+          ctx.rotate(this.rotation);
+          ctx.scale(this.scale, this.scale);
+
+          // Shadow
+          ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+          ctx.ellipse(
+            0,
+            this.size / 2,
+            this.size * 0.8,
+            this.size * 0.2,
+            0,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+
+          // Body bob animation
+          const bobY = Math.sin(this.walkCycle) * 5;
+          ctx.translate(0, bobY);
+
+          // Warning indicator
+          if (this.attackWarning) {
+            const warningAlpha = Math.sin(this.warningTime * 0.5) * 0.5 + 0.5;
+            ctx.strokeStyle = `rgba(255, 0, 0, ${warningAlpha})`;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(0, -this.size / 2, this.size * 0.7, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Exclamation mark
+            ctx.fillStyle = `rgba(255, 255, 0, ${warningAlpha})`;
+            ctx.font = "bold 30px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("!", 0, -this.size - 20);
+          }
+
+          // Hit flash
+          if (this.hitStun > 0) {
+            ctx.fillStyle = "#ffffff";
+          } else {
+            ctx.fillStyle = this.color;
+          }
+
+          // Draw stylized enemy
+          ctx.beginPath();
+          ctx.arc(0, -this.size / 2, this.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Draw limbs
+          ctx.strokeStyle = this.color;
+          ctx.lineWidth = 8;
+          ctx.lineCap = "round";
+
+          // Arms
+          ctx.beginPath();
+          ctx.moveTo(-this.size / 3, -this.size / 2);
+          ctx.lineTo(
+            -this.size / 2,
+            -this.size / 4 + Math.sin(this.armSwing) * 10
+          );
+          ctx.moveTo(this.size / 3, -this.size / 2);
+          ctx.lineTo(
+            this.size / 2,
+            -this.size / 4 - Math.sin(this.armSwing) * 10
+          );
+          ctx.stroke();
+
+          // Legs
+          ctx.beginPath();
+          ctx.moveTo(-this.size / 4, 0);
+          ctx.lineTo(
+            -this.size / 4,
+            this.size / 3 + Math.sin(this.walkCycle) * 10
+          );
+          ctx.moveTo(this.size / 4, 0);
+          ctx.lineTo(
+            this.size / 4,
+            this.size / 3 - Math.sin(this.walkCycle) * 10
+          );
+          ctx.stroke();
+
+          // Eyes
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(-this.size / 6, -this.size / 2, 5, 0, Math.PI * 2);
+          ctx.arc(this.size / 6, -this.size / 2, 5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Health bar for heavy enemies
+          if (this.maxHealth > 1 && this.health > 0) {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+            ctx.fillRect(-this.size / 2, -this.size - 30, this.size, 8);
+            ctx.fillStyle = "#00ff00";
+            ctx.fillRect(
+              -this.size / 2,
+              -this.size - 30,
+              this.size * (this.health / this.maxHealth),
+              8
+            );
+          }
+
+          ctx.restore();
+        }
+      }
+
+      class Particle {
+        constructor(x, y, vx, vy, color, size, life) {
+          this.x = x;
+          this.y = y;
+          this.vx = vx;
+          this.vy = vy;
+          this.color = color;
+          this.size = size;
+          this.life = life;
+          this.maxLife = life;
+          this.rotation = Math.random() * Math.PI * 2;
+          this.rotationSpeed = (Math.random() - 0.5) * 0.3;
+        }
+
+        update() {
+          const speedMod = slowMotion.active ? slowMotion.factor : 1;
+          this.x += this.vx * speedMod;
+          this.y += this.vy * speedMod;
+          this.vy += 0.5 * speedMod;
+          this.vx *= 0.98;
+          this.life -= speedMod;
+          this.rotation += this.rotationSpeed * speedMod;
+          return this.life <= 0;
+        }
+
+        draw() {
+          const alpha = Math.max(0, this.life / this.maxLife);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.translate(this.x + cameraShake.x, this.y + cameraShake.y);
+          ctx.rotate(this.rotation);
+          ctx.fillStyle = this.color;
+          ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+          ctx.restore();
+        }
+      }
+
+      class HitEffect {
+        constructor(x, y, type = "normal") {
+          this.x = x;
+          this.y = y;
+          this.type = type;
+          this.scale = 0;
+          this.opacity = 1;
+          this.life = 20;
+          this.rotation = Math.random() * Math.PI * 2;
+        }
+
+        update() {
+          this.scale += 0.2;
+          this.opacity -= 0.05;
+          this.life--;
+          return this.life <= 0;
+        }
+
+        draw() {
+          ctx.save();
+          ctx.globalAlpha = this.opacity;
+          ctx.translate(this.x + cameraShake.x, this.y + cameraShake.y);
+          ctx.rotate(this.rotation);
+          ctx.scale(this.scale, this.scale);
+
+          if (this.type === "perfect") {
+            // Perfect hit effect
+            ctx.strokeStyle = "#ffff00";
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+              const angle = (i / 8) * Math.PI * 2;
+              const r1 = 30;
+              const r2 = 50;
+              ctx.moveTo(Math.cos(angle) * r1, Math.sin(angle) * r1);
+              ctx.lineTo(Math.cos(angle) * r2, Math.sin(angle) * r2);
+            }
+            ctx.stroke();
+          } else {
+            // Normal hit effect
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, 40, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
+      }
+
+      function createBloodSplatter(x, y) {
+        for (let i = 0; i < 20; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 10 + 5;
+          const size = Math.random() * 6 + 2;
+          particles.push(
+            new Particle(
+              x,
+              y,
+              Math.cos(angle) * speed,
+              Math.sin(angle) * speed - Math.random() * 5,
+              "#ff0000",
+              size,
+              60
+            )
+          );
+        }
+      }
+
+      function createHitParticles(x, y, color) {
+        // Impact particles
+        for (let i = 0; i < 15; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 8 + 4;
+          const size = Math.random() * 4 + 2;
+          particles.push(
+            new Particle(
+              x,
+              y,
+              Math.cos(angle) * speed,
+              Math.sin(angle) * speed - 3,
+              color,
+              size,
+              40
+            )
+          );
+        }
+
+        // Add hit effect
+        hitEffects.push(
+          new HitEffect(x, y, color === "#ffff00" ? "perfect" : "normal")
+        );
+      }
+
+      function spawnEnemy() {
+        const side = Math.random() < 0.5 ? "left" : "right";
+
+        // Determine enemy type based on difficulty
+        let type = "basic";
+        const rand = Math.random();
+
+        if (difficulty >= 2.5 && rand < 0.15) type = "ninja";
+        else if (difficulty >= 1.5 && rand < 0.25) type = "heavy";
+        else if (difficulty >= 1.2 && rand < 0.35) type = "fast";
+
+        enemies.push(new Enemy(side, type));
+      }
+
+      function updateCameraShake() {
+        if (cameraShake.intensity > 0) {
+          cameraShake.x = (Math.random() - 0.5) * cameraShake.intensity;
+          cameraShake.y = (Math.random() - 0.5) * cameraShake.intensity;
+          cameraShake.intensity *= 0.9;
+          if (cameraShake.intensity < 0.1) cameraShake.intensity = 0;
+        }
+      }
+
+      function updateSlowMotion() {
+        if (slowMotion.active) {
+          slowMotion.timer--;
+          if (slowMotion.timer <= 0) {
+            slowMotion.active = false;
+          }
+        }
+      }
+
+      function showCombo(text, color = "#ffffff") {
+        comboIndicator.textContent = text;
+        comboIndicator.style.color = color;
+        comboIndicator.style.animation = "none";
+        void comboIndicator.offsetWidth;
+        comboIndicator.style.animation = "comboFlash 0.5s ease-out";
+      }
+
+      function attackDirection(direction) {
+        if (gameState !== "playing" || player.attacking || player.cooldown > 0)
+          return;
+
+        player.attacking = true;
+        player.attackSide = direction;
+        player.attackTime = 10;
+        player.stance = (player.stance + 1) % 4;
+
+        let hit = false;
+        let perfectHit = false;
+
+        // Check for enemy hits
+        for (let enemy of enemies) {
+          if (enemy.dying || enemy.dead) continue;
+
+          const enemySide = enemy.x < player.x ? "left" : "right";
+          const distance = Math.abs(enemy.x - player.x);
+
+          if (enemySide === direction && distance <= player.attackRange) {
+            // Check for perfect timing
+            if (
+              enemy.attackWarning &&
+              enemy.warningTime < 15 &&
+              enemy.warningTime > 5
+            ) {
+              perfectHit = true;
+              perfectHits++;
+            }
+
+            hit = true;
+            enemy.health--;
+            enemy.hitStun = 15;
+            enemy.knockback = direction === "left" ? -20 : 20;
+
+            if (enemy.health <= 0) {
+              enemy.dying = true;
+              enemy.deathTime = 0;
+
+              // Score calculation
+              let points = enemy.points;
+              if (perfectHit) points *= 2;
+              points += combo * 5;
+              score += points;
+
+              combo++;
+              player.hitStreak++;
+              player.missStreak = 0;
+              kills++;
+
+              // Increase difficulty every 10 kills
+              if (kills % 10 === 0) {
+                difficulty += 0.1;
+              }
+
+              // Camera shake based on combo
+              cameraShake.intensity = Math.min(combo * 2, 20);
+
+              // Create death effects
+              createHitParticles(
+                enemy.x,
+                enemy.y - enemy.size / 2,
+                perfectHit ? "#ffff00" : "#ff6644"
+              );
+              createBloodSplatter(enemy.x, enemy.y);
+
+              // Combo feedback
+              if (combo === 10) showCombo("10 HIT!", "#ffaa00");
+              else if (combo === 25) showCombo("25 HIT!", "#ff6600");
+              else if (combo === 50) showCombo("50 HIT!", "#ff0000");
+              else if (combo === 100) showCombo("100 HIT!", "#ff00ff");
+
+              // Power mode
+              if (player.hitStreak >= 20 && !player.powerMode) {
+                player.powerMode = true;
+                player.powerTime = 300;
+                showCombo("POWER MODE!", "#ffff00");
+              }
+
+              // Heal on high combos
+              if (combo > 0 && combo % 50 === 0) {
+                health = Math.min(health + 10, maxHealth);
+                showCombo("+10 HP!", "#00ff00");
+              }
+            } else {
+              createHitParticles(enemy.x, enemy.y - enemy.size / 2, "#ffffff");
+            }
+
+            // Slow motion on perfect hits
+            if (perfectHit) {
+              slowMotion.active = true;
+              slowMotion.timer = 10;
+            }
+          }
+        }
+
+        if (!hit) {
+          // Miss penalty
+          combo = 0;
+          player.hitStreak = 0;
+          player.missStreak++;
+          misses++;
+
+          // Apply cooldown based on miss streak
+          player.cooldown = 30 + player.missStreak * 10;
+
+          // Visual feedback for miss
+          cameraShake.intensity = 10;
+          showCombo("MISS!", "#ff0000");
+
+          // Create miss effect
+          const missX = player.x + (direction === "left" ? -100 : 100);
+          ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+          ctx.beginPath();
+          ctx.arc(missX, player.y - player.size / 2, 30, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        maxCombo = Math.max(maxCombo, combo);
+      }
+
+      function updatePlayer() {
+        if (player.attacking) {
+          player.attackTime--;
+          if (player.attackTime <= 0) {
+            player.attacking = false;
+            player.attackSide = null;
+          }
+        }
+
+        if (player.cooldown > 0) {
+          player.cooldown--;
+        }
+
+        if (player.invulnerable) {
+          player.invulnerableTime--;
+          if (player.invulnerableTime <= 0) {
+            player.invulnerable = false;
+          }
+        }
+
+        if (player.powerMode) {
+          player.powerTime--;
+          if (player.powerTime <= 0) {
+            player.powerMode = false;
+            player.hitStreak = 0;
+          }
+        }
+
+        player.stanceTime += 0.1;
+      }
+
+      function drawPlayer() {
+        ctx.save();
+        ctx.translate(player.x + cameraShake.x, player.y + cameraShake.y);
+
+        // Cooldown visual effect
+        if (player.cooldown > 0) {
+          ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
+          ctx.beginPath();
+          ctx.arc(0, -player.size / 2, player.size * 0.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Power mode aura
+        if (player.powerMode) {
+          ctx.shadowColor = "#ffff00";
+          ctx.shadowBlur = 30;
+          ctx.fillStyle = "rgba(255, 255, 0, 0.2)";
+          ctx.beginPath();
+          ctx.arc(0, -player.size / 2, player.size * 1.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+
+        // Shadow
+        ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+        ctx.ellipse(
+          0,
+          player.size / 2,
+          player.size * 0.8,
+          player.size * 0.2,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Flash when invulnerable
+        if (
+          player.invulnerable &&
+          Math.floor(player.invulnerableTime / 5) % 2
+        ) {
+          ctx.globalAlpha = 0.5;
+        }
+
+        // Stance animation
+        const stanceOffset = Math.sin(player.stanceTime) * 3;
+        ctx.translate(0, stanceOffset);
+
+        // Attack lean
+        if (player.attacking) {
+          const leanAngle = player.attackSide === "left" ? -0.2 : 0.2;
+          ctx.rotate(leanAngle);
+        }
+
+        // Draw player body
+        ctx.fillStyle =
+          player.cooldown > 0
+            ? "#ff8888"
+            : player.powerMode
+            ? "#ffff88"
+            : "#ffffff";
+        ctx.beginPath();
+        ctx.arc(0, -player.size / 2, player.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw limbs
+        ctx.strokeStyle =
+          player.cooldown > 0
+            ? "#ff8888"
+            : player.powerMode
+            ? "#ffff88"
+            : "#ffffff";
+        ctx.lineWidth = 10;
+        ctx.lineCap = "round";
+
+        // Attack animation
+        if (player.attacking && player.cooldown <= 0) {
+          const punchExtend = (player.attackTime / 10) * player.size;
+          const punchX =
+            player.attackSide === "left" ? -punchExtend : punchExtend;
+
+          // Attacking arm
+          ctx.beginPath();
+          ctx.moveTo(0, -player.size / 2);
+          ctx.lineTo(punchX, -player.size / 2);
+          ctx.stroke();
+
+          // Attack effect
+          ctx.fillStyle = player.powerMode ? "#ffff00" : "#ff6644";
+          ctx.globalAlpha = player.attackTime / 10;
+          ctx.beginPath();
+          ctx.arc(punchX, -player.size / 2, player.size / 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        } else {
+          // Idle arms
+          ctx.beginPath();
+          ctx.moveTo(-player.size / 3, -player.size / 2);
+          ctx.lineTo(-player.size / 2, -player.size / 4);
+          ctx.moveTo(player.size / 3, -player.size / 2);
+          ctx.lineTo(player.size / 2, -player.size / 4);
+          ctx.stroke();
+        }
+
+        // Legs
+        ctx.beginPath();
+        ctx.moveTo(-player.size / 4, 0);
+        ctx.lineTo(-player.size / 4, player.size / 3);
+        ctx.moveTo(player.size / 4, 0);
+        ctx.lineTo(player.size / 4, player.size / 3);
+        ctx.stroke();
+
+        // Eyes
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.arc(-player.size / 6, -player.size / 2, 6, 0, Math.PI * 2);
+        ctx.arc(player.size / 6, -player.size / 2, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      function drawBackground() {
+        // Draw dojo/temple background similar to One Finger Death Punch
+        // Sky gradient
+        const skyGradient = ctx.createLinearGradient(
+          0,
+          0,
+          0,
+          canvas.height * 0.6
+        );
+        skyGradient.addColorStop(0, "#87CEEB");
+        skyGradient.addColorStop(0.4, "#FDB813");
+        skyGradient.addColorStop(0.7, "#FD7E14");
+        skyGradient.addColorStop(1, "#8B4513");
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height * 0.6);
+
+        // Mountains in background
+        ctx.fillStyle = "#4A5568";
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height * 0.4);
+        ctx.lineTo(canvas.width * 0.3, canvas.height * 0.25);
+        ctx.lineTo(canvas.width * 0.5, canvas.height * 0.35);
+        ctx.lineTo(canvas.width * 0.7, canvas.height * 0.2);
+        ctx.lineTo(canvas.width, canvas.height * 0.3);
+        ctx.lineTo(canvas.width, canvas.height * 0.6);
+        ctx.lineTo(0, canvas.height * 0.6);
+        ctx.closePath();
+        ctx.fill();
+
+        // Temple/Dojo floor
+        ctx.fillStyle = "#8B4513";
+        ctx.fillRect(0, canvas.height * 0.6, canvas.width, canvas.height * 0.4);
+
+        // Wooden floor texture
+        ctx.strokeStyle = "#6B3410";
+        ctx.lineWidth = 2;
+        for (let y = canvas.height * 0.6; y < canvas.height; y += 30) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(canvas.width, y);
+          ctx.stroke();
+        }
+
+        // Vertical wood grain
+        ctx.strokeStyle = "rgba(107, 52, 16, 0.3)";
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += 15) {
+          ctx.beginPath();
+          ctx.moveTo(x + Math.sin(x * 0.1) * 5, canvas.height * 0.6);
+          ctx.lineTo(x + Math.sin(x * 0.1) * 5, canvas.height);
+          ctx.stroke();
+        }
+
+        // Temple pillars
+        ctx.fillStyle = "#8B0000";
+        ctx.fillRect(50, canvas.height * 0.3, 80, canvas.height * 0.3);
+        ctx.fillRect(
+          canvas.width - 130,
+          canvas.height * 0.3,
+          80,
+          canvas.height * 0.3
+        );
+
+        // Pillar details
+        ctx.fillStyle = "#A52A2A";
+        ctx.fillRect(60, canvas.height * 0.3, 60, 20);
+        ctx.fillRect(canvas.width - 120, canvas.height * 0.3, 60, 20);
+
+        // Japanese style roof elements
+        ctx.fillStyle = "#2F4F4F";
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height * 0.3);
+        ctx.lineTo(canvas.width * 0.2, canvas.height * 0.25);
+        ctx.lineTo(canvas.width * 0.2, canvas.height * 0.28);
+        ctx.lineTo(0, canvas.height * 0.33);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(canvas.width, canvas.height * 0.3);
+        ctx.lineTo(canvas.width * 0.8, canvas.height * 0.25);
+        ctx.lineTo(canvas.width * 0.8, canvas.height * 0.28);
+        ctx.lineTo(canvas.width, canvas.height * 0.33);
+        ctx.closePath();
+        ctx.fill();
+
+        // Combat zone indicator on floor
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([20, 10]);
+        ctx.beginPath();
+        ctx.moveTo(player.x - player.attackRange, canvas.height * 0.5);
+        ctx.lineTo(player.x - player.attackRange, canvas.height);
+        ctx.moveTo(player.x + player.attackRange, canvas.height * 0.5);
+        ctx.lineTo(player.x + player.attackRange, canvas.height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Combat floor line
+        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = "#4A4A4A";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(0, player.y + player.size / 2);
+        ctx.lineTo(canvas.width, player.y + player.size / 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      function drawUI() {
+        // Score and combo
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 30px Orbitron";
+        ctx.textAlign = "left";
+        ctx.fillText(`SCORE: ${score}`, 50, 50);
+
+        if (combo > 0) {
+          ctx.fillStyle =
+            combo > 50 ? "#ff0000" : combo > 20 ? "#ff6600" : "#ffaa00";
+          ctx.font = "bold 40px Orbitron";
+          ctx.fillText(`${combo} HIT COMBO`, 50, 100);
+        }
+
+        // Kills and difficulty
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "25px Orbitron";
+        ctx.textAlign = "right";
+        ctx.fillText(`KILLS: ${kills}`, canvas.width - 50, 50);
+        ctx.fillText(
+          `DIFFICULTY: ${difficulty.toFixed(1)}x`,
+          canvas.width - 50,
+          85
+        );
+
+        // Cooldown indicator
+        if (player.cooldown > 0) {
+          ctx.fillStyle = "#ff0000";
+          ctx.font = "bold 30px Orbitron";
+          ctx.textAlign = "center";
+          ctx.fillText(
+            `COOLDOWN: ${Math.ceil(player.cooldown / 30)}s`,
+            canvas.width / 2,
+            canvas.height / 2 - 100
+          );
+        }
+
+        // Health bar
+        const healthBarWidth = 350;
+        const healthBarHeight = 25;
+        const healthBarX = canvas.width / 2 - healthBarWidth / 2;
+        const healthBarY = canvas.height - 150;
+
+        // Health bar background
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+
+        // Health bar fill
+        const healthPercent = Math.max(0, health / maxHealth);
+        ctx.fillStyle =
+          healthPercent > 0.5
+            ? "#00ff00"
+            : healthPercent > 0.25
+            ? "#ffaa00"
+            : "#ff0000";
+        ctx.fillRect(
+          healthBarX,
+          healthBarY,
+          healthBarWidth * healthPercent,
+          healthBarHeight
+        );
+
+        // Health bar border
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+
+        // Health text
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "20px Orbitron";
+        ctx.textAlign = "center";
+        ctx.fillText(
+          `${Math.ceil(health)}/${maxHealth}`,
+          canvas.width / 2,
+          healthBarY + 22
+        );
+
+        // Power mode indicator
+        if (player.powerMode) {
+          ctx.fillStyle = "#ffff00";
+          ctx.font = "bold 25px Orbitron";
+          ctx.textAlign = "center";
+          ctx.fillText(
+            `POWER MODE: ${Math.ceil(player.powerTime / 60)}s`,
+            canvas.width / 2,
+            healthBarY - 20
+          );
+        }
+
+        // Perfect hits counter
+        ctx.fillStyle = "#ffff00";
+        ctx.font = "20px Orbitron";
+        ctx.textAlign = "left";
+        ctx.fillText(`PERFECT: ${perfectHits}`, 50, 150);
+      }
+
+      function drawMenu() {
+        drawBackground();
+
+        // Darken background
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Title
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 80px Orbitron";
+        ctx.textAlign = "center";
+        ctx.fillText("DRAGON PALM", canvas.width / 2, canvas.height * 0.3);
+
+        // Subtitle
+        ctx.font = "30px Orbitron";
+        ctx.fillStyle = "#ffaa00";
+        ctx.fillText(
+          "ONE FINGER DEATH PUNCH STYLE",
+          canvas.width / 2,
+          canvas.height * 0.38
+        );
+
+        // Instructions
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "25px Orbitron";
+        ctx.fillText(
+          "Press SPACE to Start",
+          canvas.width / 2,
+          canvas.height * 0.55
+        );
+
+        ctx.font = "20px Orbitron";
+        ctx.fillText(
+          "A/← Attack Left | D/→ Attack Right",
+          canvas.width / 2,
+          canvas.height * 0.65
+        );
+        ctx.fillText(
+          "Time your attacks when enemies flash!",
+          canvas.width / 2,
+          canvas.height * 0.7
+        );
+
+        // Best score
+        if (maxCombo > 0) {
+          ctx.fillStyle = "#ffaa00";
+          ctx.font = "25px Orbitron";
+          ctx.fillText(
+            `Best Combo: ${maxCombo}`,
+            canvas.width / 2,
+            canvas.height * 0.85
+          );
+        }
+      }
+
+      function drawGameOver() {
+        drawBackground();
+        enemies.forEach((enemy) => enemy.draw());
+        particles.forEach((particle) => particle.draw());
+        drawPlayer();
+
+        // Darken screen
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Game over text
+        ctx.fillStyle = "#ff0000";
+        ctx.font = "bold 80px Orbitron";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", canvas.width / 2, canvas.height * 0.3);
+
+        // Stats
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "30px Orbitron";
+        ctx.fillText(
+          `Final Score: ${score}`,
+          canvas.width / 2,
+          canvas.height * 0.45
+        );
+        ctx.fillText(
+          `Best Combo: ${maxCombo}`,
+          canvas.width / 2,
+          canvas.height * 0.52
+        );
+        ctx.fillText(
+          `Perfect Hits: ${perfectHits}`,
+          canvas.width / 2,
+          canvas.height * 0.59
+        );
+        ctx.fillText(
+          `Total Kills: ${kills}`,
+          canvas.width / 2,
+          canvas.height * 0.66
+        );
+
+        // Restart prompt
+        ctx.fillStyle = "#ffaa00";
+        ctx.font = "25px Orbitron";
+        ctx.fillText(
+          "Press SPACE to Try Again",
+          canvas.width / 2,
+          canvas.height * 0.8
+        );
+      }
+
+      function resetGame() {
+        score = 0;
+        combo = 0;
+        maxCombo = 0;
+        health = maxHealth;
+        kills = 0;
+        time = 0;
+        gameSpeed = 1;
+        perfectHits = 0;
+        misses = 0;
+        difficulty = 1;
+
+        enemies = [];
+        particles = [];
+        bloodEffects = [];
+        hitEffects = [];
+        powerups = [];
+
+        player.attacking = false;
+        player.attackSide = null;
+        player.attackTime = 0;
+        player.invulnerable = false;
+        player.invulnerableTime = 0;
+        player.stance = 0;
+        player.stanceTime = 0;
+        player.hitStreak = 0;
+        player.powerMode = false;
+        player.powerTime = 0;
+        player.cooldown = 0;
+        player.missStreak = 0;
+
+        cameraShake.intensity = 0;
+        slowMotion.active = false;
+        slowMotion.timer = 0;
+
+        gameState = "playing";
+      }
+
+      // Input handling
+      window.addEventListener("keydown", (e) => {
+        if (gameState === "menu" || gameState === "gameOver") {
+          if (e.code === "Space") {
+            e.preventDefault();
+            resetGame();
+          }
+        } else if (gameState === "playing") {
+          if (e.code === "KeyA" || e.code === "ArrowLeft") {
+            e.preventDefault();
+            attackDirection("left");
+          } else if (e.code === "KeyD" || e.code === "ArrowRight") {
+            e.preventDefault();
+            attackDirection("right");
+          }
+        }
+      });
+
+      // Touch controls
+      let touchStartX = 0;
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+
+        if (gameState === "menu" || gameState === "gameOver") {
+          resetGame();
+        } else if (gameState === "playing") {
+          const rect = canvas.getBoundingClientRect();
+          const x = touch.clientX - rect.left;
+          const canvasX = (x / rect.width) * canvas.width;
+
+          if (canvasX < canvas.width / 2) {
+            attackDirection("left");
+          } else {
+            attackDirection("right");
+          }
+        }
+      });
+
+      // Prevent scrolling on mobile
+      document.body.addEventListener(
+        "touchmove",
+        (e) => {
+          e.preventDefault();
+        },
+        { passive: false }
+      );
+
+      // Main game loop
+      let lastTime = 0;
+      function gameLoop(currentTime) {
+        const deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (gameState === "menu") {
+          drawMenu();
+        } else if (gameState === "playing") {
+          time++;
+
+          // Update game systems
+          updateCameraShake();
+          updateSlowMotion();
+          updatePlayer();
+
+          // Spawn enemies based on difficulty
+          const maxEnemies = Math.min(4 + Math.floor(difficulty), 8);
+          if (enemies.length < maxEnemies) {
+            const spawnChance =
+              (0.02 + difficulty * 0.003) * (isMobile ? MOBILE_SPAWN_RATE : 1);
+            if (Math.random() < spawnChance) {
+              spawnEnemy();
+            }
+          }
+
+          // Update game objects
+          enemies = enemies.filter((enemy) => !enemy.update());
+          particles = particles.filter((particle) => !particle.update());
+          hitEffects = hitEffects.filter((effect) => !effect.update());
+
+          // Draw everything
+          drawBackground();
+          enemies.forEach((enemy) => enemy.draw());
+          particles.forEach((particle) => particle.draw());
+          hitEffects.forEach((effect) => effect.draw());
+          drawPlayer();
+          drawUI();
+
+          // Check lose condition
+          if (health <= 0) {
+            gameState = "gameOver";
+          }
+        } else if (gameState === "gameOver") {
+          drawGameOver();
+        }
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      // Start the game
+      requestAnimationFrame(gameLoop);
+    </script>
+  </body>
+</html>
