@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenSea Rush</title>
+    <script src="https://unpkg.com/@farcade/game-sdk@latest/dist/index.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-family: "Arial", sans-serif;
+        overflow: hidden;
+      }
+
+      .emulator-frame {
+        position: relative;
+        width: 100%;
+        max-width: 400px;
+        background: #1a1a1a;
+        border-radius: 20px;
+        padding: 1px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .emulator-header {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 8px;
+        color: white;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        border-radius: 18px 18px 0 0;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .game-container {
+        position: relative;
+        width: 100%;
+        padding-top: 177.78%; /* 9:16 aspect ratio */
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        overflow: hidden;
+        border-radius: 0 0 18px 18px;
+      }
+
+      #gameCanvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        border-radius: 0 0 18px 18px;
+      }
+
+      #ui {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        right: 20px;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: white;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      }
+
+      .score-display {
+        background: rgba(0, 0, 0, 0.7);
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+      }
+
+      .timer-display {
+        background: rgba(0, 0, 0, 0.7);
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+      }
+
+      .progress-bar {
+        position: absolute;
+        top: 70px;
+        left: 20px;
+        right: 20px;
+        height: 8px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        overflow: hidden;
+        z-index: 10;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #00ff88, #00ccff);
+        width: 100%;
+        transition: width 0.1s ease;
+        border-radius: 4px;
+      }
+
+      .screen {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        text-align: center;
+        padding: 30px;
+        width: 80%;
+        border-radius: 20px;
+        z-index: 20;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+      }
+
+      .screen h1 {
+        margin: 0 0 20px 0;
+        font-size: 28px;
+        background: linear-gradient(45deg, #00ff88, #00ccff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .screen p {
+        margin: 10px 0;
+        font-size: 16px;
+        color: #ccc;
+      }
+
+      .start-btn {
+        background: linear-gradient(45deg, #00ff88, #00ccff);
+        border: none;
+        padding: 15px 30px;
+        border-radius: 25px;
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 20px;
+        transition: transform 0.2s ease;
+      }
+
+      .start-btn:hover {
+        transform: scale(1.05);
+      }
+
+      .start-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .combo-display {
+        position: absolute;
+        top: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 215, 0, 0.9);
+        color: #333;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        z-index: 10;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .particle {
+        position: absolute;
+        pointer-events: none;
+        z-index: 5;
+      }
+
+      @media (max-width: 768px) {
+        .emulator-frame {
+          max-width: 100%;
+          margin: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="emulator-frame">
+      <div class="emulator-header">
+        <div>Farcade</div>
+        <p style="font-size: 12px; color: #ccc">OpenSea Rush</p>
+      </div>
+      <div class="game-container">
+        <div id="ui">
+          <div class="score-display">Score: <span id="score">0</span></div>
+          <div class="timer-display">Time: <span id="timer">60</span>s</div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="combo-display" id="comboDisplay">Combo: x<span id="comboMultiplier">1</span></div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="startScreen" class="screen">
+          <h1>OPENSEA RUSH</h1>
+          <p>Match the NFT logos quickly!</p>
+          <p>Tap matching pairs to score points</p>
+          <p>Build combos for bonus points</p>
+          <p>60 seconds to beat your best!</p>
+          <button class="start-btn" onclick="startGame()" disabled>Loading...</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Background Music -->
+    <audio id="backgroundMusic" loop preload="auto">
+      <source src="https://lqy3lriiybxcejon.public.blob.vercel-storage.com/9343208b-7318-4bca-af94-8e882816ee18/Zachz%20Winner%20-%20blu%20%5BNCS%20Release%5D-71cmnsPS6wjyf3CUcbQop6ji3QhESr.mp3?4u5Y" type="audio/mpeg">
+    </audio>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const startScreen = document.getElementById("startScreen");
+      const scoreDisplay = document.getElementById("score");
+      const timerDisplay = document.getElementById("timer");
+      const progressFill = document.getElementById("progressFill");
+      const comboDisplay = document.getElementById("comboDisplay");
+      const comboMultiplier = document.getElementById("comboMultiplier");
+      const backgroundMusic = document.getElementById("backgroundMusic");
+
+      // Set canvas size (9:16 aspect ratio)
+      canvas.width = 360;
+      canvas.height = 640;
+
+      // Game state
+      let gameState = "start";
+      let score = 0;
+      let timeLeft = 60;
+      let matchesFound = 0;
+      let bestCombo = 0;
+      let currentCombo = 0;
+      let comboMultiplierValue = 1;
+      let selectedCards = [];
+      let matchedPairs = [];
+      let particles = [];
+      let isMuted = false;
+
+      // NFT logo images
+      const nftLogos = [
+        {
+          name: "Based Punks",
+          image:
+            "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/9343208b-7318-4bca-af94-8e882816ee18/Based%20Punks-CYWgeJxt3PDd8RF5cYxmCSx0QVkxRj.webp?meu9",
+          color: "#FF6B6B",
+        },
+        {
+          name: "Doodles",
+          image:
+            "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/9343208b-7318-4bca-af94-8e882816ee18/Doodles-cI9UCTWz0U7T3AJYjjHr1fhTaOemta.png?IxoP",
+          color: "#4ECDC4",
+        },
+        {
+          name: "OpenSea",
+          image:
+            "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/9343208b-7318-4bca-af94-8e882816ee18/Logomark-Blue-IfznRND06dh0cwuORa0MroIgSFJYRC.png?mDMu",
+          color: "#45B7D1",
+        },
+        {
+          name: "Milady",
+          image:
+            "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/9343208b-7318-4bca-af94-8e882816ee18/Milady-yIjogBDw9n5lXi7UgwaV1F7l8KqLl6.png?xmwa",
+          color: "#96CEB4",
+        },
+        {
+          name: "Pudgy",
+          image:
+            "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/9343208b-7318-4bca-af94-8e882816ee18/Pudgy-yjTRyqLoHEp7SLvaHdh2c1lnceiwhK.png?tRKA",
+          color: "#FFEAA7",
+        },
+        {
+          name: "Azuki",
+          image:
+            "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/9343208b-7318-4bca-af94-8e882816ee18/Azuki-FLHArDd3bQp9TZXxm3iKXc3xNiljYi.png?94BS",
+          color: "#DDA0DD",
+        },
+        {
+          name: "BAYC",
+          image:
+            "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/9343208b-7318-4bca-af94-8e882816ee18/BAYC-g5tDSYHbum0fV9EybJx8QPTFvtk5sf.png?Xqak",
+          color: "#98D8C8",
+        },
+        {
+          name: "Degentlemen",
+          image:
+            "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/9343208b-7318-4bca-af94-8e882816ee18/Degentlemenpng-Dgmei0HY9UsVPHiHgC6kEcbNy5b2QP.png?V3hH",
+          color: "#F7DC6F",
+        },
+      ];
+
+      // Game grid
+      const gridSize = 4;
+      const cardSize = 85; // Increased from 70 to 85
+      const cardSpacing = 8; // Reduced spacing to fit larger cards
+      const gridStartX = (canvas.width - (gridSize * cardSize + (gridSize - 1) * cardSpacing)) / 2;
+      const gridStartY = 180; // Moved up slightly to accommodate larger cards
+
+      class Card {
+        constructor(x, y, logoIndex, isRevealed = false) {
+          this.x = x;
+          this.y = y;
+          this.width = cardSize;
+          this.height = cardSize;
+          this.logoIndex = logoIndex;
+          this.isRevealed = isRevealed;
+          this.isMatched = false;
+          this.animationProgress = 0;
+          this.targetScale = 1;
+          this.currentScale = 1;
+          this.glowIntensity = 0;
+        }
+
+        update() {
+          // Animate scale
+          this.currentScale += (this.targetScale - this.currentScale) * 0.2;
+
+          // Animate glow
+          if (this.isMatched) {
+            this.glowIntensity = Math.sin(Date.now() * 0.01) * 0.5 + 0.5;
+          }
+        }
+
+        draw() {
+          const centerX = this.x + this.width / 2;
+          const centerY = this.y + this.height / 2;
+          const scaledSize = this.width * this.currentScale;
+
+          ctx.save();
+          ctx.translate(centerX, centerY);
+          ctx.scale(this.currentScale, this.currentScale);
+
+          // Draw card background
+          ctx.fillStyle = this.isRevealed ? "#2c3e50" : "#34495e";
+          ctx.shadowBlur = this.glowIntensity * 20;
+          ctx.shadowColor = this.isMatched ? nftLogos[this.logoIndex].color : "#000";
+          ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+
+          // Draw border
+          ctx.strokeStyle = this.isRevealed ? nftLogos[this.logoIndex].color : "#95a5a6";
+          ctx.lineWidth = 3;
+          ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
+
+          if (this.isRevealed || this.isMatched) {
+            // Draw NFT logo image
+            const logo = nftLogos[this.logoIndex];
+            if (logo.imageElement) {
+              const imageSize = this.width * 0.9; // Increased from 0.8 to 0.9
+              ctx.drawImage(logo.imageElement, -imageSize / 2, -imageSize / 2, imageSize, imageSize);
+            } else {
+              // Fallback to colored circle if image not loaded
+              ctx.fillStyle = logo.color;
+              ctx.beginPath();
+              ctx.arc(0, 0, this.width / 3, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          } else {
+            // Draw question mark
+            ctx.fillStyle = "#95a5a6";
+            ctx.font = "28px Arial"; // Increased font size from 24px to 28px
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("?", 0, 0);
+          }
+
+          ctx.restore();
+        }
+
+        containsPoint(x, y) {
+          return x >= this.x && x <= this.x + this.width && y >= this.y && y <= this.y + this.height;
+        }
+      }
+
+      class Particle {
+        constructor(x, y, color) {
+          this.x = x;
+          this.y = y;
+          this.vx = (Math.random() - 0.5) * 10;
+          this.vy = (Math.random() - 0.5) * 10;
+          this.life = 1;
+          this.decay = 0.02;
+          this.color = color;
+          this.size = Math.random() * 4 + 2;
+        }
+
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          this.vy += 0.2; // gravity
+          this.life -= this.decay;
+        }
+
+        draw() {
+          ctx.save();
+          ctx.globalAlpha = this.life;
+          ctx.fillStyle = this.color;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      let cards = [];
+      let gameTimer = null;
+      let imagesLoaded = 0;
+      let totalImages = 8; // 8 NFT images to load
+
+      function createCards() {
+        cards = [];
+        const logoIndices = [];
+
+        // Create 2 pairs of each logo (16 cards total for 4x4 grid)
+        for (let i = 0; i < nftLogos.length; i++) {
+          logoIndices.push(i, i);
+        }
+
+        // Shuffle the indices
+        for (let i = logoIndices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [logoIndices[i], logoIndices[j]] = [logoIndices[j], logoIndices[i]];
+        }
+
+        let logoIndex = 0;
+        for (let row = 0; row < gridSize; row++) {
+          for (let col = 0; col < gridSize; col++) {
+            const x = gridStartX + col * (cardSize + cardSpacing);
+            const y = gridStartY + row * (cardSize + cardSpacing);
+            cards.push(new Card(x, y, logoIndices[logoIndex++]));
+          }
+        }
+      }
+
+      function startGame() {
+        gameState = "playing";
+        startScreen.style.display = "none";
+        resetGame();
+
+        // Start background music
+        try {
+          backgroundMusic.volume = 0.3; // Set volume to 30%
+          backgroundMusic.play().catch(e => {
+            console.log("Auto-play prevented, user interaction required:", e);
+          });
+        } catch (e) {
+          console.log("Background music failed to start:", e);
+        }
+
+        // Initialize Farcade SDK
+        if (window.FarcadeSDK) {
+          window.FarcadeSDK.singlePlayer.actions.ready();
+        }
+      }
+
+      // Load NFT images
+      function loadImages() {
+        nftLogos.forEach((logo, index) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            logo.imageElement = img;
+            imagesLoaded++;
+            if (imagesLoaded === totalImages) {
+              // All images loaded, enable start button
+              document.querySelector(".start-btn").disabled = false;
+              document.querySelector(".start-btn").textContent = "START GAME";
+            }
+          };
+          img.onerror = () => {
+            console.warn(`Failed to load image for ${logo.name}`);
+            imagesLoaded++;
+            if (imagesLoaded === totalImages) {
+              document.querySelector(".start-btn").disabled = false;
+              document.querySelector(".start-btn").textContent = "START GAME";
+            }
+          };
+          // Add cache busting parameter to ensure fresh images
+          img.src = logo.image + (logo.image.includes("?") ? "&" : "?") + "v=" + Date.now();
+        });
+      }
+
+      function resetGame() {
+        score = 0;
+        timeLeft = 60;
+        matchesFound = 0;
+        bestCombo = 0;
+        currentCombo = 0;
+        comboMultiplierValue = 1;
+        selectedCards = [];
+        matchedPairs = [];
+        particles = [];
+
+        createCards();
+        gameState = "playing";
+
+        // Restart background music
+        try {
+          backgroundMusic.currentTime = 0; // Reset to beginning
+          backgroundMusic.play().catch(e => {
+            console.log("Auto-play prevented during reset:", e);
+          });
+        } catch (e) {
+          console.log("Failed to restart background music:", e);
+        }
+
+        // Start timer
+        if (gameTimer) clearInterval(gameTimer);
+        gameTimer = setInterval(() => {
+          if (gameState === "playing") {
+            timeLeft--;
+            if (timeLeft <= 0) {
+              gameOver();
+            }
+          }
+        }, 1000);
+      }
+
+      function gameOver() {
+        gameState = "gameover";
+        if (gameTimer) clearInterval(gameTimer);
+
+        // Pause background music
+        try {
+          backgroundMusic.pause();
+        } catch (e) {
+          console.log("Failed to pause background music:", e);
+        }
+
+        // Report score to Farcade SDK - this will trigger Farcade's game over screen
+        if (window.FarcadeSDK) {
+          window.FarcadeSDK.singlePlayer.actions.gameOver({ score: score });
+        }
+        
+        console.log("Game Over!");
+        console.log("Final Score:", score);
+        console.log("Matches Found:", matchesFound);
+        console.log("Best Combo:", bestCombo);
+      }
+
+      function handleCardClick(x, y) {
+        if (gameState !== "playing" || selectedCards.length >= 2) return;
+
+        const clickedCard = cards.find((card) => card.containsPoint(x, y));
+        if (!clickedCard || clickedCard.isMatched || selectedCards.includes(clickedCard)) return;
+
+        // Reveal card
+        clickedCard.isRevealed = true;
+        clickedCard.targetScale = 1.1;
+        selectedCards.push(clickedCard);
+
+        // Haptic feedback
+        if (window.FarcadeSDK) {
+          window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+        }
+
+        // Check for match
+        if (selectedCards.length === 2) {
+          setTimeout(() => {
+            checkMatch();
+          }, 500);
+        }
+      }
+
+      function checkMatch() {
+        const [card1, card2] = selectedCards;
+
+        if (card1.logoIndex === card2.logoIndex) {
+          // Match found!
+          card1.isMatched = true;
+          card2.isMatched = true;
+          matchedPairs.push(card1.logoIndex);
+
+          currentCombo++;
+          comboMultiplierValue = Math.min(5, Math.floor(currentCombo / 2) + 1);
+          bestCombo = Math.max(bestCombo, currentCombo);
+
+          const baseScore = 100;
+          const comboBonus = (comboMultiplierValue - 1) * 50;
+          const timeBonus = Math.floor(timeLeft / 10) * 10;
+          const roundScore = (baseScore + comboBonus + timeBonus) * comboMultiplierValue;
+
+          score += roundScore;
+          matchesFound++;
+
+          // Create particles
+          createParticles(card1.x + card1.width / 2, card1.y + card1.height / 2, nftLogos[card1.logoIndex].color);
+          createParticles(card2.x + card2.width / 2, card2.y + card2.height / 2, nftLogos[card2.logoIndex].color);
+
+          // Show combo display
+          showComboDisplay();
+
+          // Check for game completion (8 pairs total)
+          if (matchedPairs.length === 8) {
+            setTimeout(() => {
+              gameOver();
+            }, 1000);
+          }
+        } else {
+          // No match
+          card1.isRevealed = false;
+          card2.isRevealed = false;
+          currentCombo = 0;
+          comboMultiplierValue = 1;
+
+          // Time penalty
+          timeLeft = Math.max(0, timeLeft - 2);
+        }
+
+        selectedCards = [];
+      }
+
+      function createParticles(x, y, color) {
+        for (let i = 0; i < 15; i++) {
+          particles.push(new Particle(x, y, color));
+        }
+      }
+
+      function showComboDisplay() {
+        comboMultiplier.textContent = comboMultiplierValue;
+        comboDisplay.style.opacity = "1";
+        setTimeout(() => {
+          comboDisplay.style.opacity = "0";
+        }, 2000);
+      }
+
+      function update() {
+        if (gameState !== "playing") return;
+
+        // Update cards
+        cards.forEach((card) => card.update());
+
+        // Update particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+          particles[i].update();
+          if (particles[i].life <= 0) {
+            particles.splice(i, 1);
+          }
+        }
+      }
+
+      function draw() {
+        // Clear canvas
+        ctx.fillStyle = "rgba(30, 60, 114, 0.1)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw background pattern
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.lineWidth = 1;
+        const gridSize = 40;
+        for (let i = 0; i < canvas.width; i += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(i, 0);
+          ctx.lineTo(i, canvas.height);
+          ctx.stroke();
+        }
+        for (let i = 0; i < canvas.height; i += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, i);
+          ctx.lineTo(canvas.width, i);
+          ctx.stroke();
+        }
+
+        // Draw cards
+        cards.forEach((card) => card.draw());
+
+        // Draw particles
+        particles.forEach((particle) => particle.draw());
+
+        // Draw score popup
+        if (selectedCards.length === 2 && selectedCards[0].logoIndex === selectedCards[1].logoIndex) {
+          const centerX = canvas.width / 2;
+          const centerY = canvas.height / 2;
+          ctx.fillStyle = "rgba(0, 255, 136, 0.9)";
+          ctx.font = "bold 24px Arial";
+          ctx.textAlign = "center";
+          ctx.fillText("MATCH!", centerX, centerY - 50);
+        }
+      }
+
+      function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+      }
+
+      // Input handling
+      canvas.addEventListener("click", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+        handleCardClick(x, y);
+      });
+
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+        handleCardClick(x, y);
+      });
+
+      // Handle window resize
+      function resizeCanvas() {
+        const container = document.querySelector(".game-container");
+        const rect = container.getBoundingClientRect();
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      // Farcade SDK event handlers
+      if (window.FarcadeSDK) {
+        window.FarcadeSDK.on("play_again", () => {
+          resetGame();
+        });
+
+        window.FarcadeSDK.on("toggle_mute", (data) => {
+          isMuted = data.isMuted;
+        });
+      }
+
+      // Update UI
+      function updateUI() {
+        scoreDisplay.textContent = score;
+        timerDisplay.textContent = timeLeft;
+        progressFill.style.width = `${(timeLeft / 60) * 100}%`;
+
+        // Change progress bar color based on time
+        if (timeLeft > 30) {
+          progressFill.style.background = "linear-gradient(90deg, #00ff88, #00ccff)";
+        } else if (timeLeft > 10) {
+          progressFill.style.background = "linear-gradient(90deg, #ffaa00, #ff6600)";
+        } else {
+          progressFill.style.background = "linear-gradient(90deg, #ff4444, #cc0000)";
+        }
+      }
+
+      // UI update loop
+      setInterval(updateUI, 100);
+
+      // Load images and start game loop
+      loadImages();
+      gameLoop();
+    </script>
+  </body>
+</html>
