@@ -362,6 +362,9 @@
                     player: null,
                     resourcePoints: [],
                     trees: [],
+                    mountains: [],
+                    goldCoins: [],
+                    roads: [],
                     world: null
                 };
 
@@ -371,14 +374,14 @@
                         w: false, a: false, s: false, d: false,
                         ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false
                     },
-                    speed: 0.1,
+                    speed: 0.3,
                     joystick: { x: 0, y: 0 }
                 };
 
                 // Harita sistemi
                 this.worldMap = {
-                    width: 100,
-                    height: 100,
+                    width: 200,
+                    height: 200,
                     playerPosition: { x: 0, y: 0, z: 0 }
                 };
 
@@ -421,8 +424,8 @@
                     0.1, 
                     1000
                 );
-                // Kamerayı Y ekseni sabit kalacak şekilde ters yönde döndür
-                this.camera.position.set(-20, 25, 20);
+                // Kamerayı Y ekseni sabit kalacak şekilde ters yönde döndür (yakınlaştırılmış)
+                this.camera.position.set(-15, 20, 15);
                 this.camera.lookAt(0, 0, 0);
                 
                 // Kamera frustum ayarları
@@ -430,9 +433,9 @@
                 this.camera.near = 0.1;
                 
                 // Kamerayı tamamen sabitle
-                this.camera.position.x = -20;
-                this.camera.position.y = 25;
-                this.camera.position.z = 20;
+                this.camera.position.x = -15;
+                this.camera.position.y = 20;
+                this.camera.position.z = 15;
 
                 // Renderer oluştur
                 this.renderer = new THREE.WebGLRenderer({ 
@@ -641,28 +644,41 @@
             create3DScene() {
                 this.createWorld();
                 this.createPlayer();
+                this.createMountains();
+                this.createRoads();
                 this.createShelter();
                 this.createFire();
                 this.createSurvivors();
                 this.createResourcePoints();
+                this.createGoldCoins();
                 this.createSnowSystem();
+                
+                // Tüm objeleri baştan render et
+                this.scene.traverse((child) => {
+                    if (child.isMesh || child.isPoints) {
+                        child.visible = true;
+                        child.frustumCulled = false;
+                    }
+                });
             }
 
             createWorld() {
-                // Büyük dünya zemini
+                // Tüm harita baştan yüklensin - büyük dünya zemini
                 const groundGeometry = new THREE.PlaneGeometry(this.worldMap.width, this.worldMap.height);
                 const groundMaterial = new THREE.MeshLambertMaterial({ 
                     color: 0x1e293b,
-                    transparent: true,
-                    opacity: 0.8
+                    transparent: false,
+                    opacity: 1.0
                 });
                 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
                 ground.rotation.x = -Math.PI / 2;
+                ground.position.y = 0;
                 ground.receiveShadow = true;
-                ground.frustumCulled = false; // Frustum culling'i devre dışı bırak
+                ground.frustumCulled = false; // Tüm harita her zaman görünür
+                ground.visible = true;
                 this.scene.add(ground);
 
-                // Kar zemini
+                // Tüm kar zemini yüklensin
                 const snowGeometry = new THREE.PlaneGeometry(this.worldMap.width + 20, this.worldMap.height + 20);
                 const snowMaterial = new THREE.MeshLambertMaterial({ 
                     color: 0xf8fafc,
@@ -672,7 +688,8 @@
                 const snow = new THREE.Mesh(snowGeometry, snowMaterial);
                 snow.rotation.x = -Math.PI / 2;
                 snow.position.y = 0.01;
-                snow.frustumCulled = false; // Frustum culling'i devre dışı bırak
+                snow.frustumCulled = false; // Tüm kar zemini her zaman görünür
+                snow.visible = true;
                 this.scene.add(snow);
 
                 // Dünya sınırları (görünmez duvarlar)
@@ -715,6 +732,55 @@
                 this.scene.add(player);
 
                 this.sceneObjects.player = player;
+            }
+
+            createMountains() {
+                // Dağları oluştur
+                const mountainCount = 12;
+                for (let i = 0; i < mountainCount; i++) {
+                    // Farklı boyutlarda dağlar
+                    const height = Math.random() * 8 + 4; // 4-12 birim yükseklik
+                    const radius = Math.random() * 3 + 2; // 2-5 birim yarıçap
+                    
+                    const mountainGeometry = new THREE.ConeGeometry(radius, height, 8);
+                    const mountainMaterial = new THREE.MeshLambertMaterial({ 
+                        color: 0x64748b, // Koyu gri dağ rengi
+                        transparent: false,
+                        opacity: 1
+                    });
+                    const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
+                    
+                    // Rastgele pozisyon (harita kenarlarında)
+                    let x, z;
+                    const edge = Math.floor(Math.random() * 4); // 4 kenar
+                    
+                    switch(edge) {
+                        case 0: // Üst kenar
+                            x = (Math.random() - 0.5) * (this.worldMap.width - 10);
+                            z = this.worldMap.height / 2 - 5;
+                            break;
+                        case 1: // Alt kenar
+                            x = (Math.random() - 0.5) * (this.worldMap.width - 10);
+                            z = -this.worldMap.height / 2 + 5;
+                            break;
+                        case 2: // Sol kenar
+                            x = -this.worldMap.width / 2 + 5;
+                            z = (Math.random() - 0.5) * (this.worldMap.height - 10);
+                            break;
+                        case 3: // Sağ kenar
+                            x = this.worldMap.width / 2 - 5;
+                            z = (Math.random() - 0.5) * (this.worldMap.height - 10);
+                            break;
+                    }
+                    
+                    mountain.position.set(x, height / 2, z);
+                    mountain.castShadow = true;
+                    mountain.frustumCulled = false;
+                    mountain.userData = { type: 'mountain' };
+                    this.scene.add(mountain);
+                    
+                    this.sceneObjects.mountains.push(mountain);
+                }
             }
 
             createResourcePoints() {
@@ -761,6 +827,111 @@
                     this.scene.add(food);
                     
                     this.sceneObjects.resourcePoints.push(food);
+                }
+            }
+
+            createRoads() {
+                // Ana yollar oluştur
+                const roadWidth = 3;
+                const roadMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x374151, // Koyu gri yol rengi
+                    transparent: false,
+                    opacity: 1
+                });
+
+                // Yatay ana yol (merkez)
+                const horizontalRoad = new THREE.PlaneGeometry(this.worldMap.width, roadWidth);
+                const horizontalRoadMesh = new THREE.Mesh(horizontalRoad, roadMaterial);
+                horizontalRoadMesh.rotation.x = -Math.PI / 2;
+                horizontalRoadMesh.position.y = 0.02;
+                horizontalRoadMesh.frustumCulled = false;
+                horizontalRoadMesh.userData = { type: 'road' };
+                this.scene.add(horizontalRoadMesh);
+                this.sceneObjects.roads.push(horizontalRoadMesh);
+
+                // Dikey ana yol (merkez)
+                const verticalRoad = new THREE.PlaneGeometry(roadWidth, this.worldMap.height);
+                const verticalRoadMesh = new THREE.Mesh(verticalRoad, roadMaterial);
+                verticalRoadMesh.rotation.x = -Math.PI / 2;
+                verticalRoadMesh.position.y = 0.02;
+                verticalRoadMesh.frustumCulled = false;
+                verticalRoadMesh.userData = { type: 'road' };
+                this.scene.add(verticalRoadMesh);
+                this.sceneObjects.roads.push(verticalRoadMesh);
+
+                // Yan yollar - daha küçük
+                const sideRoadWidth = 2;
+
+                // Üst yan yol
+                const topSideRoad = new THREE.PlaneGeometry(this.worldMap.width * 0.6, sideRoadWidth);
+                const topSideRoadMesh = new THREE.Mesh(topSideRoad, roadMaterial);
+                topSideRoadMesh.rotation.x = -Math.PI / 2;
+                topSideRoadMesh.position.set(0, 0.02, this.worldMap.height * 0.3);
+                topSideRoadMesh.frustumCulled = false;
+                topSideRoadMesh.userData = { type: 'road' };
+                this.scene.add(topSideRoadMesh);
+                this.sceneObjects.roads.push(topSideRoadMesh);
+
+                // Alt yan yol
+                const bottomSideRoad = new THREE.PlaneGeometry(this.worldMap.width * 0.6, sideRoadWidth);
+                const bottomSideRoadMesh = new THREE.Mesh(bottomSideRoad, roadMaterial);
+                bottomSideRoadMesh.rotation.x = -Math.PI / 2;
+                bottomSideRoadMesh.position.set(0, 0.02, -this.worldMap.height * 0.3);
+                bottomSideRoadMesh.frustumCulled = false;
+                bottomSideRoadMesh.userData = { type: 'road' };
+                this.scene.add(bottomSideRoadMesh);
+                this.sceneObjects.roads.push(bottomSideRoadMesh);
+
+                // Sol yan yol
+                const leftSideRoad = new THREE.PlaneGeometry(sideRoadWidth, this.worldMap.height * 0.6);
+                const leftSideRoadMesh = new THREE.Mesh(leftSideRoad, roadMaterial);
+                leftSideRoadMesh.rotation.x = -Math.PI / 2;
+                leftSideRoadMesh.position.set(-this.worldMap.width * 0.3, 0.02, 0);
+                leftSideRoadMesh.frustumCulled = false;
+                leftSideRoadMesh.userData = { type: 'road' };
+                this.scene.add(leftSideRoadMesh);
+                this.sceneObjects.roads.push(leftSideRoadMesh);
+
+                // Sağ yan yol
+                const rightSideRoad = new THREE.PlaneGeometry(sideRoadWidth, this.worldMap.height * 0.6);
+                const rightSideRoadMesh = new THREE.Mesh(rightSideRoad, roadMaterial);
+                rightSideRoadMesh.rotation.x = -Math.PI / 2;
+                rightSideRoadMesh.position.set(this.worldMap.width * 0.3, 0.02, 0);
+                rightSideRoadMesh.frustumCulled = false;
+                rightSideRoadMesh.userData = { type: 'road' };
+                this.scene.add(rightSideRoadMesh);
+                this.sceneObjects.roads.push(rightSideRoadMesh);
+            }
+
+            createGoldCoins() {
+                // Altın paralar oluştur
+                const goldCount = 25;
+                for (let i = 0; i < goldCount; i++) {
+                    const goldGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 8);
+                    const goldMaterial = new THREE.MeshLambertMaterial({ 
+                        color: 0xffd700, // Altın rengi
+                        emissive: 0x332200 // Hafif parıltı
+                    });
+                    const goldCoin = new THREE.Mesh(goldGeometry, goldMaterial);
+                    
+                    // Rastgele pozisyon (barınak çevresinde değil)
+                    let x, z;
+                    do {
+                        x = (Math.random() - 0.5) * (this.worldMap.width - 20);
+                        z = (Math.random() - 0.5) * (this.worldMap.height - 20);
+                    } while (Math.abs(x) < 15 && Math.abs(z) < 15);
+                    
+                    goldCoin.position.set(x, 0.05, z);
+                    goldCoin.castShadow = true;
+                    goldCoin.frustumCulled = false;
+                    goldCoin.userData = { 
+                        type: 'gold', 
+                        value: Math.floor(Math.random() * 50) + 10, // 10-60 puan
+                        collected: false
+                    };
+                    this.scene.add(goldCoin);
+                    
+                    this.sceneObjects.goldCoins.push(goldCoin);
                 }
             }
 
@@ -875,15 +1046,17 @@
             }
 
             createSnowSystem() {
-                const snowCount = 1000;
+                // Kar sistemi - baştan render et, tüm harita alanına
+                const snowCount = 2000; // Daha fazla kar parçacığı
                 const snowGeometry = new THREE.BufferGeometry();
                 const positions = new Float32Array(snowCount * 3);
                 const velocities = new Float32Array(snowCount);
 
+                // Tüm harita alanına kar parçacıkları yerleştir
                 for (let i = 0; i < snowCount; i++) {
-                    positions[i * 3] = (Math.random() - 0.5) * 100;
-                    positions[i * 3 + 1] = Math.random() * 50 + 10;
-                    positions[i * 3 + 2] = (Math.random() - 0.5) * 100;
+                    positions[i * 3] = (Math.random() - 0.5) * (this.worldMap.width + 50);
+                    positions[i * 3 + 1] = Math.random() * 80 + 20; // Daha yüksekten başla
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * (this.worldMap.height + 50);
                     velocities[i] = Math.random() * 2 + 1;
                 }
 
@@ -892,12 +1065,14 @@
 
                 const snowMaterial = new THREE.PointsMaterial({
                     color: 0xffffff,
-                    size: 0.1,
+                    size: 0.08,
                     transparent: true,
-                    opacity: 0.8
+                    opacity: 0.9
                 });
 
                 const snowSystem = new THREE.Points(snowGeometry, snowMaterial);
+                snowSystem.frustumCulled = false; // Her zaman render et
+                snowSystem.visible = true;
                 this.scene.add(snowSystem);
                 
                 this.sceneObjects.snowSystem = snowSystem;
@@ -946,9 +1121,9 @@
                 let moveZ = 0;
 
                 // Kamera açısına göre hareket eksenlerini ayarla
-                // Kamera (-20, 25, 20) pozisyonunda, merkeze bakıyor
+                // Kamera (-15, 20, 15) pozisyonunda, merkeze bakıyor
                 // Bu yüzden hareket eksenlerini kameranın bakış açısına göre ayarlayalım
-                const cameraAngle = Math.atan2(-20, 20); // Kamera açısı
+                const cameraAngle = Math.atan2(-15, 15); // Kamera açısı (güncellenmiş)
 
                 // Klavye kontrolleri - kameranın bakış açısına göre (düzeltilmiş yönler)
                 if (this.movement.keys.w || this.movement.keys.ArrowUp) {
@@ -986,7 +1161,23 @@
                 const halfWidth = this.worldMap.width / 2 - 2;
                 const halfHeight = this.worldMap.height / 2 - 2;
 
-                if (Math.abs(newX) < halfWidth && Math.abs(newZ) < halfHeight) {
+                // Ağaç collision kontrolü
+                let canMove = true;
+                const playerRadius = 0.5; // Oyuncu yarıçapı
+                
+                for (let tree of this.sceneObjects.trees) {
+                    const treeX = tree.position.x;
+                    const treeZ = tree.position.z;
+                    const treeRadius = 0.8; // Ağaç yarıçapı
+                    
+                    const distance = Math.sqrt((newX - treeX) ** 2 + (newZ - treeZ) ** 2);
+                    if (distance < playerRadius + treeRadius) {
+                        canMove = false;
+                        break;
+                    }
+                }
+
+                if (Math.abs(newX) < halfWidth && Math.abs(newZ) < halfHeight && canMove) {
                     this.sceneObjects.player.position.x = newX;
                     this.sceneObjects.player.position.z = newZ;
 
@@ -1000,6 +1191,9 @@
 
                 // Kaynak toplama kontrolü
                 this.checkResourceCollection();
+                
+                // Altın toplama kontrolü
+                this.checkGoldCollection();
             }
 
             updateIsometricView() {
@@ -1056,6 +1250,30 @@
                     food.position.z += offsetZ;
                 });
 
+                // Dağları hareket ettir
+                this.sceneObjects.mountains.forEach(mountain => {
+                    mountain.position.x += offsetX;
+                    mountain.position.z += offsetZ;
+                });
+
+                // Altınları hareket ettir
+                this.sceneObjects.goldCoins.forEach(coin => {
+                    coin.position.x += offsetX;
+                    coin.position.z += offsetZ;
+                });
+
+                // Yolları hareket ettir
+                this.sceneObjects.roads.forEach(road => {
+                    road.position.x += offsetX;
+                    road.position.z += offsetZ;
+                });
+
+                // Kar sistemini hareket ettir
+                if (this.sceneObjects.snowSystem) {
+                    this.sceneObjects.snowSystem.position.x += offsetX;
+                    this.sceneObjects.snowSystem.position.z += offsetZ;
+                }
+
                 // Oyuncuyu merkeze taşı
                 this.sceneObjects.player.position.x = 0;
                 this.sceneObjects.player.position.z = 0;
@@ -1082,17 +1300,46 @@
                     }
                 });
 
-                // Yiyecek noktalarını kontrol et
+                // Yiyecek noktalarını kontrol et - otomatik toplama
                 this.sceneObjects.resourcePoints.forEach(food => {
                     const distance = Math.sqrt(food.position.x * food.position.x + food.position.z * food.position.z);
                     if (distance < collectionRange && food.userData.amount > 0) {
                         // Yiyecek topla
-                        this.gameState.food += 10;
-                        food.userData.amount -= 10;
+                        const collected = Math.min(10, food.userData.amount);
+                        food.userData.amount -= collected;
+                        this.gameState.food += collected;
                         
-                        // Yiyecek rengini değiştir
+                        // Yiyecek biterse görünmez yap
                         if (food.userData.amount <= 0) {
-                            food.material.color.setHex(0x64748b); // Gri (tükendi)
+                            food.visible = false;
+                        }
+                    }
+                });
+            }
+
+            checkGoldCollection() {
+                if (!this.sceneObjects.player) return;
+
+                const collectionRange = 1.5; // Altınlar için daha küçük mesafe
+
+                this.sceneObjects.goldCoins.forEach(coin => {
+                    if (!coin.userData.collected) {
+                        // Oyuncu merkezde olduğu için mesafe hesaplaması basit
+                        const distance = Math.sqrt(coin.position.x * coin.position.x + coin.position.z * coin.position.z);
+                        if (distance < collectionRange) {
+                            // Altın toplandı
+                            coin.userData.collected = true;
+                            coin.visible = false;
+                            
+                            // Puan ekle
+                            this.gameState.score += coin.userData.value;
+                            
+                            // Haptic feedback (mobil)
+                            if (this.detectMobile()) {
+                                this.hapticFeedback();
+                            }
+                            
+                            console.log(`Altın toplandı! +${coin.userData.value} puan`);
                         }
                     }
                 });
@@ -1143,6 +1390,49 @@
                         const z = (food.position.z + this.worldMap.height/2) * scale;
                         ctx.fillRect(x - 1, z - 1, 2, 2);
                     }
+                });
+
+                // Dağlar
+                ctx.fillStyle = '#64748b';
+                this.sceneObjects.mountains.forEach(mountain => {
+                    const x = (mountain.position.x + this.worldMap.width/2) * scale;
+                    const z = (mountain.position.z + this.worldMap.height/2) * scale;
+                    ctx.beginPath();
+                    ctx.arc(x, z, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Altınlar
+                ctx.fillStyle = '#ffd700';
+                this.sceneObjects.goldCoins.forEach(coin => {
+                    if (!coin.userData.collected) {
+                        const x = (coin.position.x + this.worldMap.width/2) * scale;
+                        const z = (coin.position.z + this.worldMap.height/2) * scale;
+                        ctx.beginPath();
+                        ctx.arc(x, z, 1, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                // Yollar
+                ctx.fillStyle = '#374151';
+                this.sceneObjects.roads.forEach(road => {
+                    const x = (road.position.x + this.worldMap.width/2) * scale;
+                    const z = (road.position.z + this.worldMap.height/2) * scale;
+                    
+                    // Yol boyutlarını minimap'e göre ayarla
+                    let roadWidth, roadHeight;
+                    if (road.geometry.parameters.width > road.geometry.parameters.height) {
+                        // Yatay yol
+                        roadWidth = road.geometry.parameters.width * scale;
+                        roadHeight = 3 * scale; // Ana yol genişliği
+                    } else {
+                        // Dikey yol
+                        roadWidth = 3 * scale; // Ana yol genişliği
+                        roadHeight = road.geometry.parameters.height * scale;
+                    }
+                    
+                    ctx.fillRect(x - roadWidth/2, z - roadHeight/2, roadWidth, roadHeight);
                 });
             }
 
@@ -1196,9 +1486,17 @@
             }
 
             render() {
-                // Three.js sahneyi render et - kamerayı her zaman sabit tut (Y ekseni sabit, ters yön)
-                this.camera.position.set(-20, 25, 20);
+                // Three.js sahneyi render et - tüm objeleri her zaman render et
+                this.camera.position.set(-15, 20, 15);
                 this.camera.lookAt(0, 0, 0);
+                
+                // Tüm objeleri görünür yap
+                this.scene.traverse((child) => {
+                    if (child.isMesh || child.isPoints) {
+                        child.visible = true;
+                        child.frustumCulled = false;
+                    }
+                });
                 
                 this.renderer.clear();
                 this.renderer.render(this.scene, this.camera);
