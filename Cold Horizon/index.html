@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cold Horizon 3D</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            background: linear-gradient(180deg, #0a1929 0%, #1e3a5f 50%, #2d5aa0 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 500px;
+            height: 750px;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            border: 2px solid #334155;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: pointer;
+        }
+
+        #gameCanvas {
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .top-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+        }
+
+        .score {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 18px;
+            color: #fbbf24;
+            border: 2px solid #f59e0b;
+        }
+
+        .resources {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .resource {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 6px 12px;
+            border-radius: 15px;
+            min-width: 120px;
+        }
+
+        .resource-icon {
+            width: 20px;
+            height: 20px;
+            font-size: 16px;
+        }
+
+        .resource-bar {
+            flex: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .resource-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .heat-fill { background: linear-gradient(90deg, #f97316 0%, #ea580c 100%); }
+        .food-fill { background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%); }
+        .shelter-fill { background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); }
+
+        .game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .game-over-screen.show {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: all;
+        }
+
+        .game-over-title {
+            font-size: 48px;
+            font-weight: bold;
+            color: #60a5fa;
+            text-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
+        }
+
+        .final-score {
+            font-size: 24px;
+            color: #fbbf24;
+        }
+
+        .restart-btn {
+            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            pointer-events: all;
+        }
+
+        .restart-btn:hover {
+            transform: scale(1.05);
+        }
+
+
+        /* Mobil Joystick */
+        .mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 120px;
+            height: 120px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .mobile-controls.show {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: all;
+        }
+
+        .joystick {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6);
+            border: 3px solid #3b82f6;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .joystick-knob {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+            border: 2px solid #ffffff;
+            position: absolute;
+            cursor: grab;
+            transition: transform 0.1s ease;
+        }
+
+        .joystick-knob:active {
+            cursor: grabbing;
+        }
+
+        /* Klavye kontrolleri göstergesi */
+        .keyboard-hint {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        /* Minimap */
+        .minimap {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #3b82f6;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .minimap-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+
+        @media (max-width: 520px) {
+            .game-container {
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                border: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- Three.js CDN -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        
+        <div class="ui-overlay">
+            <div class="top-ui">
+                <div class="score" id="scoreDisplay">Skor: 0</div>
+                <div class="resources">
+                    <div class="resource">
+                        <div class="resource-icon">🔥</div>
+                        <div class="resource-bar">
+                            <div class="resource-fill heat-fill" id="heatBar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="resource">
+                        <div class="resource-icon">🍖</div>
+                        <div class="resource-bar">
+                            <div class="resource-fill food-fill" id="foodBar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="resource">
+                        <div class="resource-icon">🏠</div>
+                        <div class="resource-bar">
+                            <div class="resource-fill shelter-fill" id="shelterBar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Mobil Joystick -->
+            <div class="mobile-controls" id="mobileControls">
+                <div class="joystick">
+                    <div class="joystick-knob" id="joystickKnob"></div>
+                </div>
+            </div>
+
+            <!-- Klavye Kontrolü Göstergesi -->
+            <div class="keyboard-hint" id="keyboardHint">
+                WASD / ←→↑↓ Hareket
+            </div>
+
+            <!-- Minimap -->
+            <div class="minimap" id="minimap">
+                <canvas class="minimap-canvas" id="minimapCanvas"></canvas>
+            </div>
+
+            <div class="game-over-screen" id="gameOverScreen">
+                <div class="game-over-title">DONDU!</div>
+                <div class="final-score" id="finalScore">Final Skor: 0</div>
+                <button class="restart-btn" id="restartBtn">Yeniden Başla</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Farcade SDK Mock (gerçek SDK yüklendiğinde değiştirilecek)
+        const Farcade = {
+            ready: () => console.log('Farcade ready'),
+            gameOver: (data) => console.log('Game over:', data),
+            hapticFeedback: () => {
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+            }
+        };
+
+        class ColdHorizon3D {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                
+                // Canvas boyutlarını ayarla
+                this.setupCanvas();
+                
+                // Three.js sahne oluştur
+                this.initThreeJS();
+                
+                // Oyun durumu
+                this.gameState = {
+                    heat: 100,
+                    food: 100,
+                    shelter: 100,
+                    survivors: 1,
+                    day: 1,
+                    score: 0,
+                    isGameOver: false,
+                    stormIntensity: 1,
+                    lastStormIncrease: Date.now()
+                };
+
+                // 3D objeler
+                this.sceneObjects = {
+                    shelter: null,
+                    fire: null,
+                    survivors: [],
+                    snowSystem: null,
+                    player: null,
+                    resourcePoints: [],
+                    trees: [],
+                    world: null
+                };
+
+                // Hareket sistemi
+                this.movement = {
+                    keys: {
+                        w: false, a: false, s: false, d: false,
+                        ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false
+                    },
+                    speed: 0.1,
+                    joystick: { x: 0, y: 0 }
+                };
+
+                // Harita sistemi
+                this.worldMap = {
+                    width: 100,
+                    height: 100,
+                    playerPosition: { x: 0, y: 0, z: 0 }
+                };
+
+                // Minimap
+                this.minimapCanvas = document.getElementById('minimapCanvas');
+                this.minimapCtx = this.minimapCanvas.getContext('2d');
+                this.setupMinimap();
+                
+
+                // Event listeners
+                this.setupEventListeners();
+                
+                // 3D sahneyi oluştur
+                this.create3DScene();
+                
+                // Oyunu başlat
+                this.startGame();
+            }
+
+            setupCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                
+                this.canvas.width = rect.width * dpr;
+                this.canvas.height = rect.height * dpr;
+                
+                this.width = rect.width;
+                this.height = rect.height;
+            }
+
+            initThreeJS() {
+                // Sahne oluştur
+                this.scene = new THREE.Scene();
+                this.scene.fog = new THREE.Fog(0x0f172a, 50, 200);
+
+                // Kamera oluştur (perspektif kamera)
+                this.camera = new THREE.PerspectiveCamera(
+                    75, 
+                    this.width / this.height, 
+                    0.1, 
+                    1000
+                );
+                // Kamerayı Y ekseni sabit kalacak şekilde ters yönde döndür
+                this.camera.position.set(-20, 25, 20);
+                this.camera.lookAt(0, 0, 0);
+                
+                // Kamera frustum ayarları
+                this.camera.far = 1000;
+                this.camera.near = 0.1;
+                
+                // Kamerayı tamamen sabitle
+                this.camera.position.x = -20;
+                this.camera.position.y = 25;
+                this.camera.position.z = 20;
+
+                // Renderer oluştur
+                this.renderer = new THREE.WebGLRenderer({ 
+                    canvas: this.canvas,
+                    antialias: true,
+                    alpha: false,
+                    logarithmicDepthBuffer: false
+                });
+                this.renderer.setSize(this.width, this.height);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.shadowMap.enabled = false; // Gölgeleri kapat
+                this.renderer.setClearColor(0x0f172a, 1);
+                
+                // Render optimizasyonlarını kapat
+                this.renderer.sortObjects = false;
+                this.renderer.autoClear = true;
+                
+                // Frustum culling'i tamamen kapat
+                this.renderer.setClearColor(0x0f172a, 1);
+                this.scene.autoUpdate = true;
+
+                // Işıklandırma
+                this.setupLighting();
+
+                // Kamera kontrolleri
+                this.setupCameraControls();
+            }
+
+            setupLighting() {
+                // Ambient ışık (genel aydınlatma)
+                const ambientLight = new THREE.AmbientLight(0x334155, 0.3);
+                this.scene.add(ambientLight);
+
+                // Direkt ışık (güneş)
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+                directionalLight.position.set(10, 20, 10);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                this.scene.add(directionalLight);
+
+                // Ateş ışığı (point light)
+                this.fireLight = new THREE.PointLight(0xf97316, 2, 15);
+                this.fireLight.position.set(0, 2, 0);
+                this.fireLight.castShadow = true;
+                this.scene.add(this.fireLight);
+            }
+
+            setupCameraControls() {
+                // Kamera tamamen sabit - hiçbir kontrol yok
+            }
+
+            setupEventListeners() {
+                // Klavye kontrolleri
+                document.addEventListener('keydown', (e) => {
+                    if (this.movement.keys.hasOwnProperty(e.key)) {
+                        this.movement.keys[e.key] = true;
+                        e.preventDefault();
+                    }
+                });
+
+                document.addEventListener('keyup', (e) => {
+                    if (this.movement.keys.hasOwnProperty(e.key)) {
+                        this.movement.keys[e.key] = false;
+                        e.preventDefault();
+                    }
+                });
+
+                // Dokunmatik kontroller (artık sadece joystick için)
+
+                // Yeniden başlat
+                document.getElementById('restartBtn').addEventListener('click', () => {
+                    this.restartGame();
+                    Farcade.hapticFeedback();
+                });
+
+                // Mobil joystick
+                this.setupJoystick();
+
+                // Mobil kontrolleri göster/gizle
+                this.detectMobile();
+
+                // Resize
+                window.addEventListener('resize', () => {
+                    this.setupCanvas();
+                });
+            }
+
+            detectMobile() {
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                const mobileControls = document.getElementById('mobileControls');
+                const keyboardHint = document.getElementById('keyboardHint');
+                
+                if (isMobile) {
+                    mobileControls.classList.add('show');
+                    keyboardHint.style.display = 'none';
+                } else {
+                    mobileControls.classList.remove('show');
+                    keyboardHint.style.display = 'block';
+                }
+            }
+
+            setupJoystick() {
+                const joystick = document.getElementById('joystickKnob');
+                let isDragging = false;
+                let startPos = { x: 0, y: 0 };
+
+                joystick.addEventListener('touchstart', (e) => {
+                    isDragging = true;
+                    const rect = joystick.parentElement.getBoundingClientRect();
+                    startPos.x = rect.left + rect.width / 2;
+                    startPos.y = rect.top + rect.height / 2;
+                    e.preventDefault();
+                });
+
+                joystick.addEventListener('touchmove', (e) => {
+                    if (!isDragging) return;
+                    
+                    const touch = e.touches[0];
+                    const rect = joystick.parentElement.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    
+                    const deltaX = touch.clientX - centerX;
+                    const deltaY = touch.clientY - centerY;
+                    
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    const maxDistance = rect.width / 2 - 20;
+                    
+                    if (distance > maxDistance) {
+                        const angle = Math.atan2(deltaY, deltaX);
+                        const newX = Math.cos(angle) * maxDistance;
+                        const newY = Math.sin(angle) * maxDistance;
+                        joystick.style.transform = `translate(${newX}px, ${newY}px)`;
+                        
+                        this.movement.joystick.x = newX / maxDistance;
+                        this.movement.joystick.y = newY / maxDistance;
+                    } else {
+                        joystick.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                        
+                        this.movement.joystick.x = deltaX / maxDistance;
+                        this.movement.joystick.y = deltaY / maxDistance;
+                    }
+                    
+                    e.preventDefault();
+                });
+
+                joystick.addEventListener('touchend', () => {
+                    isDragging = false;
+                    joystick.style.transform = 'translate(0, 0)';
+                    this.movement.joystick.x = 0;
+                    this.movement.joystick.y = 0;
+                });
+
+                // Mouse desteği (masaüstü test için)
+                joystick.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    const rect = joystick.parentElement.getBoundingClientRect();
+                    startPos.x = rect.left + rect.width / 2;
+                    startPos.y = rect.top + rect.height / 2;
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    
+                    const rect = joystick.parentElement.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    
+                    const deltaX = e.clientX - centerX;
+                    const deltaY = e.clientY - centerY;
+                    
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    const maxDistance = rect.width / 2 - 20;
+                    
+                    if (distance > maxDistance) {
+                        const angle = Math.atan2(deltaY, deltaX);
+                        const newX = Math.cos(angle) * maxDistance;
+                        const newY = Math.sin(angle) * maxDistance;
+                        joystick.style.transform = `translate(${newX}px, ${newY}px)`;
+                        
+                        this.movement.joystick.x = newX / maxDistance;
+                        this.movement.joystick.y = newY / maxDistance;
+                    } else {
+                        joystick.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                        
+                        this.movement.joystick.x = deltaX / maxDistance;
+                        this.movement.joystick.y = deltaY / maxDistance;
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    isDragging = false;
+                    joystick.style.transform = 'translate(0, 0)';
+                    this.movement.joystick.x = 0;
+                    this.movement.joystick.y = 0;
+                });
+            }
+
+            setupMinimap() {
+                this.minimapCanvas.width = 150;
+                this.minimapCanvas.height = 150;
+            }
+
+            create3DScene() {
+                this.createWorld();
+                this.createPlayer();
+                this.createShelter();
+                this.createFire();
+                this.createSurvivors();
+                this.createResourcePoints();
+                this.createSnowSystem();
+            }
+
+            createWorld() {
+                // Büyük dünya zemini
+                const groundGeometry = new THREE.PlaneGeometry(this.worldMap.width, this.worldMap.height);
+                const groundMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x1e293b,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                ground.receiveShadow = true;
+                ground.frustumCulled = false; // Frustum culling'i devre dışı bırak
+                this.scene.add(ground);
+
+                // Kar zemini
+                const snowGeometry = new THREE.PlaneGeometry(this.worldMap.width + 20, this.worldMap.height + 20);
+                const snowMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0xf8fafc,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                const snow = new THREE.Mesh(snowGeometry, snowMaterial);
+                snow.rotation.x = -Math.PI / 2;
+                snow.position.y = 0.01;
+                snow.frustumCulled = false; // Frustum culling'i devre dışı bırak
+                this.scene.add(snow);
+
+                // Dünya sınırları (görünmez duvarlar)
+                this.createWorldBounds();
+
+                this.sceneObjects.world = { ground, snow };
+            }
+
+            createWorldBounds() {
+                // Dünya sınırları için görünmez duvarlar
+                const bounds = [
+                    { pos: [0, 25, this.worldMap.height/2], size: [2, 50, this.worldMap.height] }, // Arka
+                    { pos: [0, 25, -this.worldMap.height/2], size: [2, 50, this.worldMap.height] }, // Ön
+                    { pos: [this.worldMap.width/2, 25, 0], size: [this.worldMap.width, 50, 2] }, // Sağ
+                    { pos: [-this.worldMap.width/2, 25, 0], size: [this.worldMap.width, 50, 2] }  // Sol
+                ];
+
+                bounds.forEach(bound => {
+                    const geometry = new THREE.BoxGeometry(bound.size[0], bound.size[1], bound.size[2]);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: 0x000000, 
+                        transparent: true, 
+                        opacity: 0 
+                    });
+                    const wall = new THREE.Mesh(geometry, material);
+                    wall.position.set(bound.pos[0], bound.pos[1], bound.pos[2]);
+                    wall.userData = { isBoundary: true };
+                    wall.frustumCulled = false; // Frustum culling'i devre dışı bırak
+                    this.scene.add(wall);
+                });
+            }
+
+            createPlayer() {
+                // Oyuncu karakteri (CapsuleGeometry yerine CylinderGeometry kullan)
+                const playerGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
+                const playerMaterial = new THREE.MeshLambertMaterial({ color: 0x3b82f6 });
+                const player = new THREE.Mesh(playerGeometry, playerMaterial);
+                player.position.set(0, 1, 0);
+                player.castShadow = true;
+                this.scene.add(player);
+
+                this.sceneObjects.player = player;
+            }
+
+            createResourcePoints() {
+                // Odun toplama noktaları
+                const treeCount = 20;
+                for (let i = 0; i < treeCount; i++) {
+                    const treeGeometry = new THREE.CylinderGeometry(0.5, 0.8, 4, 8);
+                    const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x16a34a });
+                    const tree = new THREE.Mesh(treeGeometry, treeMaterial);
+                    
+                    // Rastgele pozisyon (barınak çevresinde değil)
+                    let x, z;
+                    do {
+                        x = (Math.random() - 0.5) * (this.worldMap.width - 20);
+                        z = (Math.random() - 0.5) * (this.worldMap.height - 20);
+                    } while (Math.abs(x) < 15 && Math.abs(z) < 15); // Barınak çevresinde değil
+                    
+                    tree.position.set(x, 2, z);
+                    tree.castShadow = true;
+                    tree.frustumCulled = false; // Frustum culling'i devre dışı bırak
+                    tree.userData = { type: 'tree', resource: 'wood', amount: 100 };
+                    this.scene.add(tree);
+                    
+                    this.sceneObjects.trees.push(tree);
+                }
+
+                // Yiyecek noktaları
+                const foodCount = 15;
+                for (let i = 0; i < foodCount; i++) {
+                    const foodGeometry = new THREE.BoxGeometry(1, 0.5, 1);
+                    const foodMaterial = new THREE.MeshLambertMaterial({ color: 0xfbbf24 });
+                    const food = new THREE.Mesh(foodGeometry, foodMaterial);
+                    
+                    let x, z;
+                    do {
+                        x = (Math.random() - 0.5) * (this.worldMap.width - 20);
+                        z = (Math.random() - 0.5) * (this.worldMap.height - 20);
+                    } while (Math.abs(x) < 15 && Math.abs(z) < 15);
+                    
+                    food.position.set(x, 0.25, z);
+                    food.castShadow = true;
+                    food.frustumCulled = false; // Frustum culling'i devre dışı bırak
+                    food.userData = { type: 'food', resource: 'food', amount: 50 };
+                    this.scene.add(food);
+                    
+                    this.sceneObjects.resourcePoints.push(food);
+                }
+            }
+
+            createShelter() {
+                // Barınak duvarları
+                const wallGeometry = new THREE.BoxGeometry(8, 4, 6);
+                const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x475569 });
+                
+                // Arka duvar
+                const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
+                backWall.position.set(0, 2, -3);
+                backWall.castShadow = true;
+                this.scene.add(backWall);
+
+                // Sol duvar
+                const leftWall = new THREE.Mesh(wallGeometry, wallMaterial);
+                leftWall.position.set(-4, 2, 0);
+                leftWall.rotation.y = Math.PI / 2;
+                leftWall.castShadow = true;
+                this.scene.add(leftWall);
+
+                // Sağ duvar
+                const rightWall = new THREE.Mesh(wallGeometry, wallMaterial);
+                rightWall.position.set(4, 2, 0);
+                rightWall.rotation.y = Math.PI / 2;
+                rightWall.castShadow = true;
+                this.scene.add(rightWall);
+
+                // Çatı
+                const roofGeometry = new THREE.ConeGeometry(6, 3, 4);
+                const roofMaterial = new THREE.MeshLambertMaterial({ color: 0x64748b });
+                const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+                roof.position.set(0, 5, 0);
+                roof.rotation.y = Math.PI / 4;
+                roof.castShadow = true;
+                this.scene.add(roof);
+
+                this.sceneObjects.shelter = { backWall, leftWall, rightWall, roof };
+            }
+
+
+            createFire() {
+                // Ateş geometrisi
+                const fireGeometry = new THREE.ConeGeometry(0.5, 2, 8);
+                const fireMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0xf97316,
+                    emissive: 0xf97316,
+                    emissiveIntensity: 0.5
+                });
+                const fire = new THREE.Mesh(fireGeometry, fireMaterial);
+                fire.position.set(0, 1, 0);
+                fire.castShadow = true;
+                this.scene.add(fire);
+
+                // Ateş partikülleri
+                const particleCount = 50;
+                const particles = new THREE.BufferGeometry();
+                const positions = new Float32Array(particleCount * 3);
+                const colors = new Float32Array(particleCount * 3);
+
+                for (let i = 0; i < particleCount; i++) {
+                    positions[i * 3] = (Math.random() - 0.5) * 2;
+                    positions[i * 3 + 1] = Math.random() * 3;
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 2;
+
+                    const color = new THREE.Color();
+                    color.setHSL(0.1, 1, Math.random() * 0.5 + 0.5);
+                    colors[i * 3] = color.r;
+                    colors[i * 3 + 1] = color.g;
+                    colors[i * 3 + 2] = color.b;
+                }
+
+                particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+                const particleMaterial = new THREE.PointsMaterial({
+                    size: 0.1,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                const fireParticles = new THREE.Points(particles, particleMaterial);
+                fireParticles.position.set(0, 1, 0);
+                this.scene.add(fireParticles);
+
+                this.sceneObjects.fire = { fire, particles: fireParticles };
+            }
+
+            createSurvivors() {
+                // Hayatta kalan karakterleri oluştur
+                for (let i = 0; i < this.gameState.survivors; i++) {
+                    this.addSurvivor(i);
+                }
+            }
+
+            addSurvivor(index) {
+                const survivorGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 8);
+                const survivorMaterial = new THREE.MeshLambertMaterial({ color: 0xfbbf24 });
+                const survivor = new THREE.Mesh(survivorGeometry, survivorMaterial);
+                
+                const angle = (index / this.gameState.survivors) * Math.PI * 2;
+                survivor.position.set(
+                    Math.cos(angle) * 6,
+                    0.75,
+                    Math.sin(angle) * 6
+                );
+                survivor.castShadow = true;
+                this.scene.add(survivor);
+                
+                this.sceneObjects.survivors.push(survivor);
+            }
+
+            createSnowSystem() {
+                const snowCount = 1000;
+                const snowGeometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(snowCount * 3);
+                const velocities = new Float32Array(snowCount);
+
+                for (let i = 0; i < snowCount; i++) {
+                    positions[i * 3] = (Math.random() - 0.5) * 100;
+                    positions[i * 3 + 1] = Math.random() * 50 + 10;
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 100;
+                    velocities[i] = Math.random() * 2 + 1;
+                }
+
+                snowGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                snowGeometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 1));
+
+                const snowMaterial = new THREE.PointsMaterial({
+                    color: 0xffffff,
+                    size: 0.1,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                const snowSystem = new THREE.Points(snowGeometry, snowMaterial);
+                this.scene.add(snowSystem);
+                
+                this.sceneObjects.snowSystem = snowSystem;
+            }
+
+            startGame() {
+                this.gameLoop();
+                this.resourceDecayLoop();
+                Farcade.ready();
+            }
+
+            gameLoop() {
+                if (this.gameState.isGameOver) return;
+
+                this.update();
+                this.render();
+                
+                requestAnimationFrame(() => this.gameLoop());
+            }
+
+            update() {
+                // Fırtına yoğunluğunu artır
+                const now = Date.now();
+                if (now - this.gameState.lastStormIncrease > 30000) { // 30 saniye
+                    this.gameState.stormIntensity += 0.2;
+                    this.gameState.lastStormIncrease = now;
+                }
+
+                // Oyuncu hareketi
+                this.updatePlayerMovement();
+
+                // 3D animasyonları güncelle
+                this.update3DAnimations();
+
+                // Minimap güncelle
+                this.updateMinimap();
+
+                // Oyun bitti mi kontrol et
+                this.checkGameOver();
+            }
+
+            updatePlayerMovement() {
+                if (!this.sceneObjects.player) return;
+
+                let moveX = 0;
+                let moveZ = 0;
+
+                // Kamera açısına göre hareket eksenlerini ayarla
+                // Kamera (-20, 25, 20) pozisyonunda, merkeze bakıyor
+                // Bu yüzden hareket eksenlerini kameranın bakış açısına göre ayarlayalım
+                const cameraAngle = Math.atan2(-20, 20); // Kamera açısı
+
+                // Klavye kontrolleri - kameranın bakış açısına göre (düzeltilmiş yönler)
+                if (this.movement.keys.w || this.movement.keys.ArrowUp) {
+                    // İleri - kameranın baktığı yön
+                    moveX -= Math.sin(cameraAngle) * this.movement.speed;
+                    moveZ -= Math.cos(cameraAngle) * this.movement.speed;
+                }
+                if (this.movement.keys.s || this.movement.keys.ArrowDown) {
+                    // Geri - kameranın baktığı yönün tersi
+                    moveX += Math.sin(cameraAngle) * this.movement.speed;
+                    moveZ += Math.cos(cameraAngle) * this.movement.speed;
+                }
+                if (this.movement.keys.a || this.movement.keys.ArrowLeft) {
+                    // Sol - kameranın soluna doğru
+                    moveX -= Math.cos(cameraAngle) * this.movement.speed;
+                    moveZ += Math.sin(cameraAngle) * this.movement.speed;
+                }
+                if (this.movement.keys.d || this.movement.keys.ArrowRight) {
+                    // Sağ - kameranın sağına doğru
+                    moveX += Math.cos(cameraAngle) * this.movement.speed;
+                    moveZ -= Math.sin(cameraAngle) * this.movement.speed;
+                }
+
+                // Joystick kontrolleri - düzeltilmiş eksen sistemi
+                moveX -= this.movement.joystick.x * Math.cos(cameraAngle) * this.movement.speed;
+                moveZ += this.movement.joystick.x * Math.sin(cameraAngle) * this.movement.speed;
+                moveX -= this.movement.joystick.y * Math.sin(cameraAngle) * this.movement.speed;
+                moveZ -= this.movement.joystick.y * Math.cos(cameraAngle) * this.movement.speed;
+
+                // Oyuncuyu hareket ettir
+                const newX = this.sceneObjects.player.position.x + moveX;
+                const newZ = this.sceneObjects.player.position.z + moveZ;
+
+                // Sınır kontrolü
+                const halfWidth = this.worldMap.width / 2 - 2;
+                const halfHeight = this.worldMap.height / 2 - 2;
+
+                if (Math.abs(newX) < halfWidth && Math.abs(newZ) < halfHeight) {
+                    this.sceneObjects.player.position.x = newX;
+                    this.sceneObjects.player.position.z = newZ;
+
+                    // Oyuncu pozisyonunu güncelle
+                    this.worldMap.playerPosition.x = newX;
+                    this.worldMap.playerPosition.z = newZ;
+
+                    // İzole bakış açısı - oyuncu merkezde kalır
+                    this.updateIsometricView();
+                }
+
+                // Kaynak toplama kontrolü
+                this.checkResourceCollection();
+            }
+
+            updateIsometricView() {
+                if (!this.sceneObjects.player) return;
+
+                // Oyuncuyu her zaman kamera merkezine taşı
+                const playerWorldPos = this.sceneObjects.player.position.clone();
+                
+                // Tüm sahne objelerini oyuncunun tersi yönde hareket ettir
+                const offsetX = -playerWorldPos.x;
+                const offsetZ = -playerWorldPos.z;
+
+                // Dünya objelerini hareket ettir
+                if (this.sceneObjects.world) {
+                    this.sceneObjects.world.ground.position.x = offsetX;
+                    this.sceneObjects.world.ground.position.z = offsetZ;
+                    this.sceneObjects.world.snow.position.x = offsetX;
+                    this.sceneObjects.world.snow.position.z = offsetZ;
+                }
+
+                // Barınak objelerini hareket ettir
+                if (this.sceneObjects.shelter) {
+                    Object.values(this.sceneObjects.shelter).forEach(obj => {
+                        if (obj.position) {
+                            obj.position.x += offsetX;
+                            obj.position.z += offsetZ;
+                        }
+                    });
+                }
+
+                // Ateş objelerini hareket ettir
+                if (this.sceneObjects.fire) {
+                    this.sceneObjects.fire.fire.position.x += offsetX;
+                    this.sceneObjects.fire.fire.position.z += offsetZ;
+                    this.sceneObjects.fire.particles.position.x += offsetX;
+                    this.sceneObjects.fire.particles.position.z += offsetZ;
+                }
+
+                // Hayatta kalanları hareket ettir
+                this.sceneObjects.survivors.forEach(survivor => {
+                    survivor.position.x += offsetX;
+                    survivor.position.z += offsetZ;
+                });
+
+                // Ağaçları hareket ettir
+                this.sceneObjects.trees.forEach(tree => {
+                    tree.position.x += offsetX;
+                    tree.position.z += offsetZ;
+                });
+
+                // Yiyecek noktalarını hareket ettir
+                this.sceneObjects.resourcePoints.forEach(food => {
+                    food.position.x += offsetX;
+                    food.position.z += offsetZ;
+                });
+
+                // Oyuncuyu merkeze taşı
+                this.sceneObjects.player.position.x = 0;
+                this.sceneObjects.player.position.z = 0;
+            }
+
+            checkResourceCollection() {
+                if (!this.sceneObjects.player) return;
+
+                const playerPos = this.sceneObjects.player.position; // Her zaman (0, 1, 0)
+                const collectionRange = 2;
+
+                // Ağaçları kontrol et (oyuncu merkezde olduğu için mesafe hesaplaması basit)
+                this.sceneObjects.trees.forEach(tree => {
+                    const distance = Math.sqrt(tree.position.x * tree.position.x + tree.position.z * tree.position.z);
+                    if (distance < collectionRange && tree.userData.amount > 0) {
+                        // Odun topla
+                        this.gameState.heat += 5;
+                        tree.userData.amount -= 10;
+                        
+                        // Ağaç rengini değiştir (tükenme göstergesi)
+                        if (tree.userData.amount <= 0) {
+                            tree.material.color.setHex(0x8b5cf6); // Mor (tükendi)
+                        }
+                    }
+                });
+
+                // Yiyecek noktalarını kontrol et
+                this.sceneObjects.resourcePoints.forEach(food => {
+                    const distance = Math.sqrt(food.position.x * food.position.x + food.position.z * food.position.z);
+                    if (distance < collectionRange && food.userData.amount > 0) {
+                        // Yiyecek topla
+                        this.gameState.food += 10;
+                        food.userData.amount -= 10;
+                        
+                        // Yiyecek rengini değiştir
+                        if (food.userData.amount <= 0) {
+                            food.material.color.setHex(0x64748b); // Gri (tükendi)
+                        }
+                    }
+                });
+            }
+
+            updateMinimap() {
+                const ctx = this.minimapCtx;
+                const canvas = this.minimapCanvas;
+                
+                // Minimap'i temizle
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Harita ölçeği
+                const scale = canvas.width / this.worldMap.width;
+                
+                // Oyuncu pozisyonu
+                const playerX = (this.worldMap.playerPosition.x + this.worldMap.width/2) * scale;
+                const playerZ = (this.worldMap.playerPosition.z + this.worldMap.height/2) * scale;
+
+                // Oyuncu noktası
+                ctx.fillStyle = '#3b82f6';
+                ctx.beginPath();
+                ctx.arc(playerX, playerZ, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Barınak (merkez)
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(canvas.width/2 - 2, canvas.height/2 - 2, 4, 4);
+
+                // Ağaçlar
+                ctx.fillStyle = '#16a34a';
+                this.sceneObjects.trees.forEach(tree => {
+                    if (tree.userData.amount > 0) {
+                        const x = (tree.position.x + this.worldMap.width/2) * scale;
+                        const z = (tree.position.z + this.worldMap.height/2) * scale;
+                        ctx.beginPath();
+                        ctx.arc(x, z, 1, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                // Yiyecek noktaları
+                ctx.fillStyle = '#fbbf24';
+                this.sceneObjects.resourcePoints.forEach(food => {
+                    if (food.userData.amount > 0) {
+                        const x = (food.position.x + this.worldMap.width/2) * scale;
+                        const z = (food.position.z + this.worldMap.height/2) * scale;
+                        ctx.fillRect(x - 1, z - 1, 2, 2);
+                    }
+                });
+            }
+
+            update3DAnimations() {
+                const time = Date.now() * 0.001;
+
+                // Ateş animasyonu
+                if (this.sceneObjects.fire) {
+                    // Ateş partiküllerini animasyonla
+                    const particles = this.sceneObjects.fire.particles;
+                    const positions = particles.geometry.attributes.position.array;
+                    
+                    for (let i = 0; i < positions.length; i += 3) {
+                        positions[i + 1] += 0.02; // Y yönünde hareket
+                        positions[i] += Math.sin(time + i) * 0.01; // X yönünde sallanma
+                        positions[i + 2] += Math.cos(time + i) * 0.01; // Z yönünde sallanma
+                        
+                        if (positions[i + 1] > 5) {
+                            positions[i + 1] = 1;
+                        }
+                    }
+                    particles.geometry.attributes.position.needsUpdate = true;
+
+                    // Ateş ışığı yoğunluğu
+                    this.fireLight.intensity = 2 + Math.sin(time * 2) * 0.5;
+                }
+
+                // Kar animasyonu
+                if (this.sceneObjects.snowSystem) {
+                    const positions = this.sceneObjects.snowSystem.geometry.attributes.position.array;
+                    const velocities = this.sceneObjects.snowSystem.geometry.attributes.velocity.array;
+                    
+                    for (let i = 0; i < positions.length; i += 3) {
+                        positions[i + 1] -= velocities[i / 3] * this.gameState.stormIntensity * 0.01;
+                        positions[i] += Math.sin(time + i) * 0.005 * this.gameState.stormIntensity;
+                        
+                        if (positions[i + 1] < -5) {
+                            positions[i + 1] = 50;
+                            positions[i] = (Math.random() - 0.5) * 100;
+                            positions[i + 2] = (Math.random() - 0.5) * 100;
+                        }
+                    }
+                    this.sceneObjects.snowSystem.geometry.attributes.position.needsUpdate = true;
+                }
+
+                // Hayatta kalanları animasyonla
+                this.sceneObjects.survivors.forEach((survivor, index) => {
+                    survivor.rotation.y += 0.01;
+                    survivor.position.y = 0.75 + Math.sin(time * 2 + index) * 0.1;
+                });
+            }
+
+            render() {
+                // Three.js sahneyi render et - kamerayı her zaman sabit tut (Y ekseni sabit, ters yön)
+                this.camera.position.set(-20, 25, 20);
+                this.camera.lookAt(0, 0, 0);
+                
+                this.renderer.clear();
+                this.renderer.render(this.scene, this.camera);
+            }
+
+
+            resourceDecayLoop() {
+                if (this.gameState.isGameOver) return;
+
+                // Kaynakları azalt
+                const heatDecay = 2 * this.gameState.stormIntensity;
+                const foodDecay = 1 + (this.gameState.survivors * 0.5);
+                
+                this.gameState.heat = Math.max(0, this.gameState.heat - heatDecay);
+                this.gameState.food = Math.max(0, this.gameState.food - foodDecay);
+                
+                this.updateUI();
+                
+                setTimeout(() => this.resourceDecayLoop(), 1000);
+            }
+
+            updateUI() {
+                // Skor
+                document.getElementById('scoreDisplay').textContent = `Skor: ${this.gameState.score}`;
+                
+                // Kaynaklar
+                document.getElementById('heatBar').style.width = `${this.gameState.heat}%`;
+                document.getElementById('foodBar').style.width = `${this.gameState.food}%`;
+                document.getElementById('shelterBar').style.width = `${this.gameState.shelter}%`;
+            }
+
+            checkGameOver() {
+                if (this.gameState.heat <= 0 || this.gameState.food <= 0) {
+                    this.gameOver();
+                }
+            }
+
+            gameOver() {
+                this.gameState.isGameOver = true;
+                // Seçim sistemi kaldırıldı
+                
+                // Final skoru
+                const finalScore = this.gameState.score + this.gameState.survivors * 5 + this.gameState.day;
+                
+                document.getElementById('finalScore').textContent = `Final Skor: ${finalScore}`;
+                document.getElementById('gameOverScreen').classList.add('show');
+                
+                // Farcade'e bildir
+                Farcade.gameOver({ score: finalScore });
+            }
+
+            restartGame() {
+                // Oyun durumunu sıfırla
+                this.gameState = {
+                    heat: 100,
+                    food: 100,
+                    shelter: 100,
+                    survivors: 1,
+                    day: 1,
+                    score: 0,
+                    isGameOver: false,
+                    stormIntensity: 1,
+                    lastStormIncrease: Date.now()
+                };
+
+                // UI'ı sıfırla
+                this.updateUI();
+                document.getElementById('gameOverScreen').classList.remove('show');
+                // Seçim sistemi kaldırıldı
+
+                // Oyunu yeniden başlat
+                this.startGame();
+            }
+        }
+
+        // Oyunu başlat
+        window.addEventListener('load', () => {
+            new ColdHorizon3D();
+        });
+
+        // Farcade SDK event listeners
+        window.addEventListener('play_again', () => {
+            location.reload();
+        });
+
+        window.addEventListener('toggle_mute', () => {
+            // Ses kontrolü (şu anda ses yok)
+            console.log('Ses açık/kapalı');
+        });
+    </script>
+</body>
+</html>
