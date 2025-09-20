@@ -380,8 +380,8 @@
 
                 // Harita sistemi
                 this.worldMap = {
-                    width: 200,
-                    height: 200,
+                    width: 100,
+                    height: 100,
                     playerPosition: { x: 0, y: 0, z: 0 }
                 };
 
@@ -646,7 +646,6 @@
                 this.createPlayer();
                 this.createMountains();
                 this.createRoads();
-                this.createShelter();
                 this.createFire();
                 this.createSurvivors();
                 this.createResourcePoints();
@@ -723,20 +722,91 @@
             }
 
             createPlayer() {
-                // Oyuncu karakteri (CapsuleGeometry yerine CylinderGeometry kullan)
-                const playerGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
-                const playerMaterial = new THREE.MeshLambertMaterial({ color: 0x3b82f6 });
-                const player = new THREE.Mesh(playerGeometry, playerMaterial);
-                player.position.set(0, 1, 0);
-                player.castShadow = true;
+                // İnsan şeklinde oyuncu karakteri oluştur
+                const player = new THREE.Group();
+                
+                // Vücut (ana gövde) - daha büyük
+                const bodyGeometry = new THREE.CylinderGeometry(0.6, 0.8, 2.4, 8);
+                const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x3b82f6 });
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                body.position.y = 1.2;
+                body.castShadow = true;
+                player.add(body);
+
+                // Kafa - daha büyük
+                const headGeometry = new THREE.SphereGeometry(0.5, 8, 6);
+                const headMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+                const head = new THREE.Mesh(headGeometry, headMaterial);
+                head.position.y = 3.0;
+                head.castShadow = true;
+                player.add(head);
+
+                // Saç - daha büyük
+                const hairGeometry = new THREE.SphereGeometry(0.54, 8, 6);
+                const hairMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
+                const hair = new THREE.Mesh(hairGeometry, hairMaterial);
+                hair.position.y = 3.1;
+                hair.scale.y = 0.7;
+                player.add(hair);
+
+                // Sol kol - daha büyük
+                const leftArmGeometry = new THREE.CylinderGeometry(0.16, 0.2, 1.6, 6);
+                const armMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+                const leftArm = new THREE.Mesh(leftArmGeometry, armMaterial);
+                leftArm.position.set(-0.8, 1.6, 0);
+                leftArm.rotation.z = 0.3;
+                leftArm.castShadow = true;
+                player.add(leftArm);
+
+                // Sağ kol - daha büyük
+                const rightArmGeometry = new THREE.CylinderGeometry(0.16, 0.2, 1.6, 6);
+                const rightArm = new THREE.Mesh(rightArmGeometry, armMaterial);
+                rightArm.position.set(0.8, 1.6, 0);
+                rightArm.rotation.z = -0.3;
+                rightArm.castShadow = true;
+                player.add(rightArm);
+
+                // Sol bacak - daha büyük
+                const leftLegGeometry = new THREE.CylinderGeometry(0.2, 0.24, 2.0, 6);
+                const legMaterial = new THREE.MeshLambertMaterial({ color: 0x2c3e50 });
+                const leftLeg = new THREE.Mesh(leftLegGeometry, legMaterial);
+                leftLeg.position.set(-0.3, -1.0, 0);
+                leftLeg.castShadow = true;
+                player.add(leftLeg);
+
+                // Sağ bacak - daha büyük
+                const rightLegGeometry = new THREE.CylinderGeometry(0.2, 0.24, 2.0, 6);
+                const rightLeg = new THREE.Mesh(rightLegGeometry, legMaterial);
+                rightLeg.position.set(0.3, -1.0, 0);
+                rightLeg.castShadow = true;
+                player.add(rightLeg);
+
+                // Ayaklar - daha büyük
+                const footGeometry = new THREE.BoxGeometry(0.4, 0.2, 0.8);
+                const footMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+                
+                const leftFoot = new THREE.Mesh(footGeometry, footMaterial);
+                leftFoot.position.set(-0.3, -2.1, 0.2);
+                leftFoot.castShadow = true;
+                player.add(leftFoot);
+
+                const rightFoot = new THREE.Mesh(footGeometry, footMaterial);
+                rightFoot.position.set(0.3, -2.1, 0.2);
+                rightFoot.castShadow = true;
+                player.add(rightFoot);
+
+                // Oyuncuyu sahneye ekle
+                player.position.set(0, 0, 0);
                 this.scene.add(player);
 
                 this.sceneObjects.player = player;
             }
 
             createMountains() {
-                // Dağları oluştur
+                // Dağları oluştur - collision detection ile
                 const mountainCount = 12;
+                const minDistance = 8; // Dağlar arası minimum mesafe
+                
                 for (let i = 0; i < mountainCount; i++) {
                     // Farklı boyutlarda dağlar
                     const height = Math.random() * 8 + 4; // 4-12 birim yükseklik
@@ -750,33 +820,57 @@
                     });
                     const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
                     
-                    // Rastgele pozisyon (harita kenarlarında)
+                    // Collision detection ile pozisyon bul
                     let x, z;
-                    const edge = Math.floor(Math.random() * 4); // 4 kenar
+                    let attempts = 0;
+                    let validPosition = false;
                     
-                    switch(edge) {
-                        case 0: // Üst kenar
-                            x = (Math.random() - 0.5) * (this.worldMap.width - 10);
-                            z = this.worldMap.height / 2 - 5;
-                            break;
-                        case 1: // Alt kenar
-                            x = (Math.random() - 0.5) * (this.worldMap.width - 10);
-                            z = -this.worldMap.height / 2 + 5;
-                            break;
-                        case 2: // Sol kenar
-                            x = -this.worldMap.width / 2 + 5;
-                            z = (Math.random() - 0.5) * (this.worldMap.height - 10);
-                            break;
-                        case 3: // Sağ kenar
-                            x = this.worldMap.width / 2 - 5;
-                            z = (Math.random() - 0.5) * (this.worldMap.height - 10);
-                            break;
+                    while (!validPosition && attempts < 50) {
+                        const edge = Math.floor(Math.random() * 4); // 4 kenar
+                        
+                        switch(edge) {
+                            case 0: // Üst kenar
+                                x = (Math.random() - 0.5) * (this.worldMap.width - 20);
+                                z = this.worldMap.height / 2 - 8;
+                                break;
+                            case 1: // Alt kenar
+                                x = (Math.random() - 0.5) * (this.worldMap.width - 20);
+                                z = -this.worldMap.height / 2 + 8;
+                                break;
+                            case 2: // Sol kenar
+                                x = -this.worldMap.width / 2 + 8;
+                                z = (Math.random() - 0.5) * (this.worldMap.height - 20);
+                                break;
+                            case 3: // Sağ kenar
+                                x = this.worldMap.width / 2 - 8;
+                                z = (Math.random() - 0.5) * (this.worldMap.height - 20);
+                                break;
+                        }
+                        
+                        // Diğer dağlarla çarpışma kontrolü
+                        validPosition = true;
+                        for (let existingMountain of this.sceneObjects.mountains) {
+                            const distance = Math.sqrt(
+                                (x - existingMountain.position.x) ** 2 + 
+                                (z - existingMountain.position.z) ** 2
+                            );
+                            if (distance < minDistance) {
+                                validPosition = false;
+                                break;
+                            }
+                        }
+                        
+                        attempts++;
                     }
                     
                     mountain.position.set(x, height / 2, z);
                     mountain.castShadow = true;
                     mountain.frustumCulled = false;
-                    mountain.userData = { type: 'mountain' };
+                    mountain.userData = { 
+                        type: 'mountain',
+                        radius: radius,
+                        height: height
+                    };
                     this.scene.add(mountain);
                     
                     this.sceneObjects.mountains.push(mountain);
@@ -831,76 +925,135 @@
             }
 
             createRoads() {
-                // Ana yollar oluştur
-                const roadWidth = 3;
+                // Bezier eğrileri ile pürüzsüz yollar oluştur
+                const roadWidth = 2.5;
                 const roadMaterial = new THREE.MeshLambertMaterial({ 
-                    color: 0x374151, // Koyu gri yol rengi
+                    color: 0x6b7280, // Daha açık gri yol rengi
                     transparent: false,
                     opacity: 1
                 });
 
-                // Yatay ana yol (merkez)
-                const horizontalRoad = new THREE.PlaneGeometry(this.worldMap.width, roadWidth);
-                const horizontalRoadMesh = new THREE.Mesh(horizontalRoad, roadMaterial);
-                horizontalRoadMesh.rotation.x = -Math.PI / 2;
-                horizontalRoadMesh.position.y = 0.02;
-                horizontalRoadMesh.frustumCulled = false;
-                horizontalRoadMesh.userData = { type: 'road' };
-                this.scene.add(horizontalRoadMesh);
-                this.sceneObjects.roads.push(horizontalRoadMesh);
+                // Ana yollar - Bezier eğrileri ile
+                this.createBezierRoad(
+                    [-this.worldMap.width * 0.4, 0, -this.worldMap.height * 0.2],
+                    [-this.worldMap.width * 0.1, 0, this.worldMap.height * 0.1],
+                    [this.worldMap.width * 0.1, 0, -this.worldMap.height * 0.1],
+                    [this.worldMap.width * 0.4, 0, this.worldMap.height * 0.2],
+                    roadWidth, roadMaterial
+                );
 
-                // Dikey ana yol (merkez)
-                const verticalRoad = new THREE.PlaneGeometry(roadWidth, this.worldMap.height);
-                const verticalRoadMesh = new THREE.Mesh(verticalRoad, roadMaterial);
-                verticalRoadMesh.rotation.x = -Math.PI / 2;
-                verticalRoadMesh.position.y = 0.02;
-                verticalRoadMesh.frustumCulled = false;
-                verticalRoadMesh.userData = { type: 'road' };
-                this.scene.add(verticalRoadMesh);
-                this.sceneObjects.roads.push(verticalRoadMesh);
+                // Dikey ana yol
+                this.createBezierRoad(
+                    [-this.worldMap.width * 0.2, 0, -this.worldMap.height * 0.4],
+                    [this.worldMap.width * 0.1, 0, -this.worldMap.height * 0.1],
+                    [-this.worldMap.width * 0.1, 0, this.worldMap.height * 0.1],
+                    [this.worldMap.width * 0.2, 0, this.worldMap.height * 0.4],
+                    roadWidth, roadMaterial
+                );
 
-                // Yan yollar - daha küçük
-                const sideRoadWidth = 2;
-
+                // Yan yollar - daha eğrisel
+                const sideRoadWidth = 1.8;
+                
                 // Üst yan yol
-                const topSideRoad = new THREE.PlaneGeometry(this.worldMap.width * 0.6, sideRoadWidth);
-                const topSideRoadMesh = new THREE.Mesh(topSideRoad, roadMaterial);
-                topSideRoadMesh.rotation.x = -Math.PI / 2;
-                topSideRoadMesh.position.set(0, 0.02, this.worldMap.height * 0.3);
-                topSideRoadMesh.frustumCulled = false;
-                topSideRoadMesh.userData = { type: 'road' };
-                this.scene.add(topSideRoadMesh);
-                this.sceneObjects.roads.push(topSideRoadMesh);
-
+                this.createBezierRoad(
+                    [-this.worldMap.width * 0.3, 0, this.worldMap.height * 0.25],
+                    [-this.worldMap.width * 0.05, 0, this.worldMap.height * 0.35],
+                    [this.worldMap.width * 0.05, 0, this.worldMap.height * 0.35],
+                    [this.worldMap.width * 0.3, 0, this.worldMap.height * 0.25],
+                    sideRoadWidth, roadMaterial
+                );
+                
                 // Alt yan yol
-                const bottomSideRoad = new THREE.PlaneGeometry(this.worldMap.width * 0.6, sideRoadWidth);
-                const bottomSideRoadMesh = new THREE.Mesh(bottomSideRoad, roadMaterial);
-                bottomSideRoadMesh.rotation.x = -Math.PI / 2;
-                bottomSideRoadMesh.position.set(0, 0.02, -this.worldMap.height * 0.3);
-                bottomSideRoadMesh.frustumCulled = false;
-                bottomSideRoadMesh.userData = { type: 'road' };
-                this.scene.add(bottomSideRoadMesh);
-                this.sceneObjects.roads.push(bottomSideRoadMesh);
-
+                this.createBezierRoad(
+                    [-this.worldMap.width * 0.3, 0, -this.worldMap.height * 0.25],
+                    [-this.worldMap.width * 0.05, 0, -this.worldMap.height * 0.35],
+                    [this.worldMap.width * 0.05, 0, -this.worldMap.height * 0.35],
+                    [this.worldMap.width * 0.3, 0, -this.worldMap.height * 0.25],
+                    sideRoadWidth, roadMaterial
+                );
+                
                 // Sol yan yol
-                const leftSideRoad = new THREE.PlaneGeometry(sideRoadWidth, this.worldMap.height * 0.6);
-                const leftSideRoadMesh = new THREE.Mesh(leftSideRoad, roadMaterial);
-                leftSideRoadMesh.rotation.x = -Math.PI / 2;
-                leftSideRoadMesh.position.set(-this.worldMap.width * 0.3, 0.02, 0);
-                leftSideRoadMesh.frustumCulled = false;
-                leftSideRoadMesh.userData = { type: 'road' };
-                this.scene.add(leftSideRoadMesh);
-                this.sceneObjects.roads.push(leftSideRoadMesh);
-
+                this.createBezierRoad(
+                    [-this.worldMap.width * 0.25, 0, -this.worldMap.height * 0.3],
+                    [-this.worldMap.width * 0.35, 0, -this.worldMap.height * 0.05],
+                    [-this.worldMap.width * 0.35, 0, this.worldMap.height * 0.05],
+                    [-this.worldMap.width * 0.25, 0, this.worldMap.height * 0.3],
+                    sideRoadWidth, roadMaterial
+                );
+                
                 // Sağ yan yol
-                const rightSideRoad = new THREE.PlaneGeometry(sideRoadWidth, this.worldMap.height * 0.6);
-                const rightSideRoadMesh = new THREE.Mesh(rightSideRoad, roadMaterial);
-                rightSideRoadMesh.rotation.x = -Math.PI / 2;
-                rightSideRoadMesh.position.set(this.worldMap.width * 0.3, 0.02, 0);
-                rightSideRoadMesh.frustumCulled = false;
-                rightSideRoadMesh.userData = { type: 'road' };
-                this.scene.add(rightSideRoadMesh);
-                this.sceneObjects.roads.push(rightSideRoadMesh);
+                this.createBezierRoad(
+                    [this.worldMap.width * 0.25, 0, -this.worldMap.height * 0.3],
+                    [this.worldMap.width * 0.35, 0, -this.worldMap.height * 0.05],
+                    [this.worldMap.width * 0.35, 0, this.worldMap.height * 0.05],
+                    [this.worldMap.width * 0.25, 0, this.worldMap.height * 0.3],
+                    sideRoadWidth, roadMaterial
+                );
+            }
+
+            createBezierRoad(start, control1, control2, end, width, material) {
+                // Bezier eğrisi ile pürüzsüz yol oluştur
+                const segments = 500; // Maksimum pürüzsüzlük = mükemmel eğriler
+                const points = [];
+                
+                // Bezier eğrisi noktalarını hesapla
+                for (let i = 0; i <= segments; i++) {
+                    const t = i / segments;
+                    const point = this.calculateBezierPoint(start, control1, control2, end, t);
+                    points.push(point);
+                }
+                
+                // Yol parçalarını oluştur
+                for (let i = 0; i < points.length - 1; i++) {
+                    const currentPoint = points[i];
+                    const nextPoint = points[i + 1];
+                    
+                    // İki nokta arasındaki mesafeyi hesapla
+                    const distance = Math.sqrt(
+                        (nextPoint[0] - currentPoint[0]) ** 2 + 
+                        (nextPoint[2] - currentPoint[2]) ** 2
+                    );
+                    
+                    // Yol parçası oluştur - daha pürüzsüz birleşim için
+                    const roadGeometry = new THREE.PlaneGeometry(width * 1.1, distance);
+                    const roadMesh = new THREE.Mesh(roadGeometry, material);
+                    roadMesh.rotation.x = -Math.PI / 2;
+                    
+                    // Pozisyonu hesapla (iki nokta arası)
+                    const midX = (currentPoint[0] + nextPoint[0]) / 2;
+                    const midZ = (currentPoint[2] + nextPoint[2]) / 2;
+                    
+                    roadMesh.position.set(midX, 0.02, midZ);
+                    
+                    // Rotasyonu hesapla (yön)
+                    const angle = Math.atan2(nextPoint[2] - currentPoint[2], nextPoint[0] - currentPoint[0]);
+                    roadMesh.rotation.z = angle;
+                    
+                    roadMesh.frustumCulled = false;
+                    roadMesh.userData = { type: 'road' };
+                    this.scene.add(roadMesh);
+                    this.sceneObjects.roads.push(roadMesh);
+                }
+            }
+
+            calculateBezierPoint(start, control1, control2, end, t) {
+                // Cubic Bezier eğrisi hesaplama
+                const x = Math.pow(1 - t, 3) * start[0] + 
+                         3 * Math.pow(1 - t, 2) * t * control1[0] + 
+                         3 * (1 - t) * Math.pow(t, 2) * control2[0] + 
+                         Math.pow(t, 3) * end[0];
+                         
+                const y = Math.pow(1 - t, 3) * start[1] + 
+                         3 * Math.pow(1 - t, 2) * t * control1[1] + 
+                         3 * (1 - t) * Math.pow(t, 2) * control2[1] + 
+                         Math.pow(t, 3) * end[1];
+                         
+                const z = Math.pow(1 - t, 3) * start[2] + 
+                         3 * Math.pow(1 - t, 2) * t * control1[2] + 
+                         3 * (1 - t) * Math.pow(t, 2) * control2[2] + 
+                         Math.pow(t, 3) * end[2];
+                         
+                return [x, y, z];
             }
 
             createGoldCoins() {
@@ -1177,6 +1330,21 @@
                     }
                 }
 
+                // Dağ collision kontrolü
+                if (canMove) {
+                    for (let mountain of this.sceneObjects.mountains) {
+                        const mountainX = mountain.position.x;
+                        const mountainZ = mountain.position.z;
+                        const mountainRadius = mountain.userData.radius || 3; // Dağ yarıçapı
+                        
+                        const distance = Math.sqrt((newX - mountainX) ** 2 + (newZ - mountainZ) ** 2);
+                        if (distance < playerRadius + mountainRadius) {
+                            canMove = false;
+                            break;
+                        }
+                    }
+                }
+
                 if (Math.abs(newX) < halfWidth && Math.abs(newZ) < halfHeight && canMove) {
                     this.sceneObjects.player.position.x = newX;
                     this.sceneObjects.player.position.z = newZ;
@@ -1214,15 +1382,6 @@
                     this.sceneObjects.world.snow.position.z = offsetZ;
                 }
 
-                // Barınak objelerini hareket ettir
-                if (this.sceneObjects.shelter) {
-                    Object.values(this.sceneObjects.shelter).forEach(obj => {
-                        if (obj.position) {
-                            obj.position.x += offsetX;
-                            obj.position.z += offsetZ;
-                        }
-                    });
-                }
 
                 // Ateş objelerini hareket ettir
                 if (this.sceneObjects.fire) {
