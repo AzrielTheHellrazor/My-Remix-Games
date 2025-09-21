@@ -233,11 +233,18 @@
             
             <div class="top-ui">
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <div class="score" id="scoreDisplay">Score: 0</div>
+                    <div class="score" id="scoreDisplay">Score: 0</div>
                     <div class="time-counter" style="background: rgba(0, 0, 0, 0.7); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; color: #10b981; border: 2px solid #059669;" id="timeCounter">⏱️ Time: 0:00</div>
-                    <div class="space-counter" style="background: rgba(0, 0, 0, 0.7); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; color: #60a5fa; border: 2px solid #3b82f6;" id="spaceCounter">🚀 Space: 0</div>
-                    <div class="gear-counter" style="background: rgba(0, 0, 0, 0.7); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; color: #fbbf24; border: 2px solid #f59e0b;" id="gearCounter">⚙️ Gears: 0</div>
                 </div>
+                
+                <!-- Health bar -->
+                <div class="health-bar" style="position: absolute; top: 0; right: 20px; width: 200px; height: 20px; background: rgba(0, 0, 0, 0.7); border-radius: 10px; border: 2px solid #ef4444; overflow: hidden;">
+                    <div class="health-fill" id="healthFill" style="height: 100%; background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); width: 100%; transition: width 0.3s ease;"></div>
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);" id="healthText">❤️ 100/100</div>
+                </div>
+                
+                <!-- Crosshair kaldırıldı - hareket yönü nişan sistemi -->
+                
                 <!-- Resource bars removed - tycoon only -->
             </div>
 
@@ -279,7 +286,30 @@
                     startTime: Date.now(), // Game start time for speed bonus
                     timeBonus: 0, // Bonus points for completing fast
                     timeLimit: 210, // 3:30 in seconds
-                    gameEnded: false
+                    gameEnded: false,
+                    // Zombi sistemi
+                    health: 100, // Oyuncu canı
+                    maxHealth: 100,
+                    zombiesKilled: 0, // Öldürülen zombi sayısı
+                    lastZombieSpawn: 0, // Son zombi spawn zamanı
+                    zombieSpawnRate: 5000, // 5 saniyede bir zombi spawn
+                    combatMode: false, // Savaş modu aktif mi
+                    lastAttack: 0, // Son saldırı zamanı
+                    // Silah sistemi
+                    weapon: {
+                        type: 'pistol',
+                        damage: 35,
+                        range: 15, // 15 metre menzil
+                        fireRate: 500, // 0.5 saniye cooldown
+                        lastFired: 0,
+                        ammo: 999, // Sınırsız mermi
+                        recoil: 0.1
+                    },
+                    // Hareket yönü nişan sistemi
+                    aiming: {
+                        aimDirection: { x: 0, z: -1 }, // Varsayılan olarak öne bakıyor
+                        lastMoveDirection: { x: 0, z: -1 } // Son hareket yönü
+                    }
                 };
 
                 // Yeni Tycoon Sistemi
@@ -391,7 +421,8 @@
                     world: null,
                     tycoonPlatforms: [],
                     tycoonObjects: [],
-                    gears: [] // Collectible gears on ground
+                    gears: [], // Collectible gears on ground
+                    zombies: [] // Zombi düşmanlar
                 };
 
                 // Hareket sistemi
@@ -403,14 +434,8 @@
                     },
                     speed: 0.3,
                     joystick: { x: 0, y: 0 },
-                    // Zıplama sistemi
-                    jump: {
-                        isJumping: false,
-                        velocity: 0,
-                        gravity: -0.02,
-                        jumpPower: 0.6,
-                        groundY: 3
-                    }
+                    // Zıplama sistemi kaldırıldı - silah sistemi kullanılıyor
+                    weaponAiming: false // Silah nişan alma durumu
                 };
 
                 // Harita sistemi
@@ -428,6 +453,9 @@
                 
                 // 3D sahneyi oluştur
                 this.create3DScene();
+                
+                // Zombi sistemini başlat
+                this.initZombieSystem();
                 
                 // Oyunu başlat
                 this.startGame();
@@ -528,12 +556,12 @@
                         e.preventDefault();
                     }
                     
-                    // Space key for jumping
+                    // Space key for shooting zombies
                     if (e.key === ' ' || e.code === 'Space') {
                         this.movement.keys.space = true;
                         this.gameState.spaceCount++;
-                        this.startJump();
-                        console.log(`Space pressed! Count: ${this.gameState.spaceCount}`);
+                        this.shootWeapon(); // Silah ateşle
+                        console.log(`Weapon fired! Count: ${this.gameState.spaceCount}`);
                         e.preventDefault();
                     }
                 });
@@ -555,6 +583,8 @@
 
                 // Mobil joystick
                 this.setupJoystick();
+
+                // Mouse sistemi kaldırıldı - hareket yönü nişan sistemi
 
                 // Mobil kontrolleri göster/gizle
                 this.detectMobile();
@@ -674,40 +704,9 @@
                 });
             }
 
-            // setupMinimap fonksiyonu kaldırıldı
-            
-            startJump() {
-                // Sadece yerdeyken zıplayabilir
-                if (!this.movement.jump.isJumping) {
-                    this.movement.jump.isJumping = true;
-                    this.movement.jump.velocity = this.movement.jump.jumpPower;
-                    
-                    // Add money bonus for jumping
-                    const jumpBonus = 50;
-                    this.tycoon.money += jumpBonus;
-                    this.gameState.totalEarned += jumpBonus;
-                    
-                    console.log(`Jump! +$${jumpBonus} bonus`);
-                    this.updateTycoonUI();
-                }
-            }
-            
-            updateJump() {
-                if (!this.sceneObjects.player) return;
-                
-                if (this.movement.jump.isJumping) {
-                    // Zıplama fiziği uygula
-                    this.movement.jump.velocity += this.movement.jump.gravity;
-                    this.sceneObjects.player.position.y += this.movement.jump.velocity;
-                    
-                    // Yere inme kontrolü
-                    if (this.sceneObjects.player.position.y <= this.movement.jump.groundY) {
-                        this.sceneObjects.player.position.y = this.movement.jump.groundY;
-                        this.movement.jump.isJumping = false;
-                        this.movement.jump.velocity = 0;
-                    }
-                }
-            }
+            // Mouse sistemi tamamen kaldırıldı - hareket yönü nişan sistemi kullanılıyor
+
+            // setupMinimap fonksiyonu kaldırıldı - zıplama sistemi kaldırıldı
 
             create3DScene() {
                 this.createWorld();
@@ -821,6 +820,133 @@
                 this.sceneObjects.gears.push(gear);
                 
                 console.log(`Gear spawned at (${x.toFixed(1)}, ${z.toFixed(1)})`);
+            }
+
+            // Zombi Sistemi
+            initZombieSystem() {
+                console.log("Zombi sistemi başlatılıyor...");
+                this.gameState.lastZombieSpawn = Date.now();
+            }
+
+            createZombie() {
+                console.log("Yeni zombi oluşturuluyor...");
+                
+                // Zombi karakteri oluştur
+                const zombie = new THREE.Group();
+                
+                // Vücut (ana gövde) - zombi için daha karanlık renkler
+                const bodyGeometry = new THREE.CylinderGeometry(0.5, 0.7, 2.2, 6);
+                const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x2d4a22 }); // Koyu yeşil
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                body.position.y = 1.1;
+                body.castShadow = true;
+                zombie.add(body);
+
+                // Kafa - zombi kafası
+                const headGeometry = new THREE.SphereGeometry(0.45, 6, 5);
+                const headMaterial = new THREE.MeshLambertMaterial({ color: 0x8b956d }); // Soluk yeşil
+                const head = new THREE.Mesh(headGeometry, headMaterial);
+                head.position.y = 2.8;
+                head.castShadow = true;
+                zombie.add(head);
+
+                // Gözler - kırmızı parlayan gözler
+                const eyeGeometry = new THREE.SphereGeometry(0.08, 4, 3);
+                const eyeMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0xff0000,
+                    emissive: 0x440000
+                });
+                
+                const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                leftEye.position.set(-0.15, 2.9, 0.35);
+                zombie.add(leftEye);
+                
+                const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                rightEye.position.set(0.15, 2.9, 0.35);
+                zombie.add(rightEye);
+
+                // Kollar - zombi kolları
+                const leftArmGeometry = new THREE.CylinderGeometry(0.14, 0.18, 1.4, 5);
+                const armMaterial = new THREE.MeshLambertMaterial({ color: 0x8b956d });
+                const leftArm = new THREE.Mesh(leftArmGeometry, armMaterial);
+                leftArm.position.set(-0.7, 1.4, 0);
+                leftArm.rotation.z = 0.5; // Zombi gibi sarkık kol
+                leftArm.castShadow = true;
+                zombie.add(leftArm);
+
+                const rightArmGeometry = new THREE.CylinderGeometry(0.14, 0.18, 1.4, 5);
+                const rightArm = new THREE.Mesh(rightArmGeometry, armMaterial);
+                rightArm.position.set(0.7, 1.4, 0);
+                rightArm.rotation.z = -0.5; // Zombi gibi sarkık kol
+                rightArm.castShadow = true;
+                zombie.add(rightArm);
+
+                // Bacaklar - zombi bacakları
+                const leftLegGeometry = new THREE.CylinderGeometry(0.18, 0.22, 1.8, 5);
+                const legMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+                const leftLeg = new THREE.Mesh(leftLegGeometry, legMaterial);
+                leftLeg.position.set(-0.25, -0.9, 0);
+                leftLeg.castShadow = true;
+                zombie.add(leftLeg);
+
+                const rightLegGeometry = new THREE.CylinderGeometry(0.18, 0.22, 1.8, 5);
+                const rightLeg = new THREE.Mesh(rightLegGeometry, legMaterial);
+                rightLeg.position.set(0.25, -0.9, 0);
+                rightLeg.castShadow = true;
+                zombie.add(rightLeg);
+
+                // Harita kenarından rastgele spawn
+                const spawnDistance = 25; // Oyuncudan uzak spawn
+                const angle = Math.random() * Math.PI * 2;
+                const x = Math.cos(angle) * spawnDistance;
+                const z = Math.sin(angle) * spawnDistance;
+                
+                zombie.position.set(x, 2.8, z);
+                
+                // Zombi özellikleri
+                zombie.userData = {
+                    type: 'zombie',
+                    health: 30,
+                    maxHealth: 30,
+                    speed: 0.08, // Oyuncudan yavaş
+                    damage: 15,
+                    lastAttack: 0,
+                    attackCooldown: 2000, // 2 saniye
+                    target: null, // Hedef (oyuncu)
+                    state: 'hunting', // hunting, attacking, dead
+                    deathTime: 0
+                };
+                
+                zombie.castShadow = true;
+                zombie.frustumCulled = false;
+                
+                this.scene.add(zombie);
+                this.sceneObjects.zombies.push(zombie);
+                
+                console.log(`Zombi spawn edildi: (${x.toFixed(1)}, ${z.toFixed(1)})`);
+                return zombie;
+            }
+
+            spawnZombie() {
+                const now = Date.now();
+                
+                // Spawn rate kontrolü
+                if (now - this.gameState.lastZombieSpawn < this.gameState.zombieSpawnRate) {
+                    return;
+                }
+                
+                // Maksimum zombi sayısı kontrolü (performans için)
+                if (this.sceneObjects.zombies.length >= 8) {
+                    return;
+                }
+                
+                this.createZombie();
+                this.gameState.lastZombieSpawn = now;
+                
+                // Zamanla spawn rate'i artır
+                if (this.gameState.zombieSpawnRate > 2000) {
+                    this.gameState.zombieSpawnRate -= 50;
+                }
             }
             
             // Tycoon bağlantı fonksiyonları kaldırıldı
@@ -987,6 +1113,12 @@
                 rightFoot.castShadow = true;
                 player.add(rightFoot);
 
+                // Silah ekle - sağ elde pistol
+                const weaponGroup = this.createWeapon();
+                weaponGroup.position.set(0.8, 1.2, 0.3); // Sağ el pozisyonu
+                weaponGroup.rotation.set(0, 0, -0.2); // Hafif eğim
+                player.add(weaponGroup);
+
                 // Oyuncuyu sahneye ekle - başlangıç pozisyonu 0,3,0 (ayaklar tamamen yerin üstünde)
                 player.position.set(0, 3, 0);
                 // Karakteri 180 derece döndür
@@ -994,6 +1126,248 @@
                 this.scene.add(player);
 
                 this.sceneObjects.player = player;
+            }
+
+            createWeapon() {
+                // Pistol silahı oluştur
+                const weaponGroup = new THREE.Group();
+                
+                // Silah gövdesi (ana kısım)
+                const bodyGeometry = new THREE.BoxGeometry(0.15, 0.6, 0.08);
+                const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2c2c }); // Koyu gri
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                body.position.set(0, 0, 0);
+                body.castShadow = true;
+                weaponGroup.add(body);
+
+                // Namlu
+                const barrelGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.25, 8);
+                const barrelMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a }); // Siyah
+                const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
+                barrel.position.set(0, 0.35, 0);
+                barrel.rotation.z = Math.PI / 2; // Yatay
+                barrel.castShadow = true;
+                weaponGroup.add(barrel);
+
+                // Kabza (tutma yeri)
+                const gripGeometry = new THREE.BoxGeometry(0.12, 0.3, 0.06);
+                const gripMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 }); // Kahverengi
+                const grip = new THREE.Mesh(gripGeometry, gripMaterial);
+                grip.position.set(0, -0.25, 0);
+                grip.castShadow = true;
+                weaponGroup.add(grip);
+
+                // Nişangah
+                const sightGeometry = new THREE.BoxGeometry(0.03, 0.05, 0.02);
+                const sightMaterial = new THREE.MeshLambertMaterial({ color: 0xffd700 }); // Altın
+                const sight = new THREE.Mesh(sightGeometry, sightMaterial);
+                sight.position.set(0, 0.25, 0.05);
+                weaponGroup.add(sight);
+
+                weaponGroup.userData = { type: 'weapon', weaponType: 'pistol' };
+                return weaponGroup;
+            }
+
+            shootWeapon() {
+                const now = Date.now();
+                const weapon = this.gameState.weapon;
+                
+                // Fire rate kontrolü
+                if (now - weapon.lastFired < weapon.fireRate) {
+                    return;
+                }
+                
+                weapon.lastFired = now;
+                
+                // Silah ateşleme efekti
+                this.playWeaponFireEffect();
+                
+                // En yakın zombiyi hedefle ve vur
+                this.shootAtNearestZombie();
+                
+                console.log(`Silah ateşlendi! Hasar: ${weapon.damage}, Menzil: ${weapon.range}m`);
+            }
+
+            playWeaponFireEffect() {
+                if (!this.sceneObjects.player) return;
+                
+                // Silahı bul
+                const weapon = this.sceneObjects.player.children.find(child => 
+                    child.userData && child.userData.type === 'weapon'
+                );
+                
+                if (!weapon) return;
+                
+                // Recoil animasyonu
+                const originalRotation = weapon.rotation.x;
+                weapon.rotation.x -= this.gameState.weapon.recoil;
+                
+                setTimeout(() => {
+                    weapon.rotation.x = originalRotation;
+                }, 100);
+                
+                // Muzzle flash efekti (namlu alevi)
+                this.createMuzzleFlash(weapon);
+                
+                // Haptic feedback
+                if (window.FarcadeSDK && window.FarcadeSDK.singlePlayer.actions.hapticFeedback) {
+                    window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+                }
+            }
+
+            createMuzzleFlash(weapon) {
+                // Namlu alevi efekti
+                const flashGeometry = new THREE.SphereGeometry(0.1, 6, 4);
+                const flashMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0xffff00,
+                    emissive: 0xffaa00,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+                
+                // Namlu ucuna yerleştir
+                flash.position.set(0, 0.5, 0);
+                weapon.add(flash);
+                
+                // Kısa süre sonra kaldır
+                setTimeout(() => {
+                    weapon.remove(flash);
+                }, 50);
+            }
+
+            shootAtNearestZombie() {
+                const weapon = this.gameState.weapon;
+                const aimDir = this.gameState.aiming.aimDirection;
+                
+                // Raycast ile bakış yönündeki zombileri bul
+                const hitZombies = this.raycastZombies(aimDir, weapon.range);
+                
+                if (hitZombies.length > 0) {
+                    // En yakın zombiyi vur
+                    const nearestHit = hitZombies[0];
+                    this.damageZombie(nearestHit.zombie, nearestHit.index, weapon.damage);
+                    
+                    // Mermi izi efekti - vurulan zombiye
+                    this.createBulletTrail(nearestHit.zombie.position);
+                } else {
+                    // Boşa ateş - sadece mermi izi göster
+                    const endPoint = {
+                        x: aimDir.x * weapon.range,
+                        y: 3,
+                        z: aimDir.z * weapon.range
+                    };
+                    this.createBulletTrail(endPoint);
+                }
+            }
+
+            raycastZombies(direction, maxRange) {
+                const hitZombies = [];
+                const rayOrigin = { x: 0, y: 3, z: 0 }; // Oyuncu pozisyonu
+                
+                for (let i = 0; i < this.sceneObjects.zombies.length; i++) {
+                    const zombie = this.sceneObjects.zombies[i];
+                    
+                    if (!zombie || !zombie.userData || zombie.userData.state === 'dead') continue;
+                    
+                    // Zombiye olan vektör
+                    const toZombie = {
+                        x: zombie.position.x - rayOrigin.x,
+                        y: zombie.position.y - rayOrigin.y,
+                        z: zombie.position.z - rayOrigin.z
+                    };
+                    
+                    // Mesafe kontrolü
+                    const distance = Math.sqrt(toZombie.x * toZombie.x + toZombie.z * toZombie.z);
+                    if (distance > maxRange) continue;
+                    
+                    // Yön vektörünü normalize et
+                    const zombieDirection = {
+                        x: toZombie.x / distance,
+                        z: toZombie.z / distance
+                    };
+                    
+                    // Nişan yönü ile zombi yönü arasındaki açı
+                    const dotProduct = direction.x * zombieDirection.x + direction.z * zombieDirection.z;
+                    const angle = Math.acos(Math.max(-1, Math.min(1, dotProduct)));
+                    
+                    // Açı toleransı (yaklaşık 30 derece)
+                    const angleThreshold = Math.PI / 6; // 30 derece
+                    
+                    if (angle <= angleThreshold) {
+                        hitZombies.push({
+                            zombie: zombie,
+                            index: i,
+                            distance: distance,
+                            angle: angle
+                        });
+                    }
+                }
+                
+                // Mesafeye göre sırala (en yakın önce)
+                hitZombies.sort((a, b) => a.distance - b.distance);
+                
+                return hitZombies;
+            }
+
+            damageZombie(zombie, index, damage) {
+                if (!zombie || !zombie.userData) return;
+                
+                zombie.userData.health -= damage;
+                
+                // Zombi öldü mü?
+                if (zombie.userData.health <= 0) {
+                    this.killZombie(zombie, index);
+                } else {
+                    // Hasar efekti - zombiyi kırmızıya boyar
+                    this.showZombieDamageEffect(zombie);
+                }
+                
+                console.log(`Zombi vuruldu! Kalan can: ${zombie.userData.health}`);
+            }
+
+            showZombieDamageEffect(zombie) {
+                // Geçici kırmızı renk efekti
+                const originalColors = [];
+                
+                zombie.children.forEach((child, index) => {
+                    if (child.material && child.material.color) {
+                        originalColors[index] = child.material.color.getHex();
+                        child.material.color.setHex(0xff4444); // Kırmızı
+                    }
+                });
+                
+                // 200ms sonra orijinal renge döndür
+                setTimeout(() => {
+                    zombie.children.forEach((child, index) => {
+                        if (child.material && originalColors[index] !== undefined) {
+                            child.material.color.setHex(originalColors[index]);
+                        }
+                    });
+                }, 200);
+            }
+
+            createBulletTrail(targetPosition) {
+                // Mermi izi çizgisi
+                const points = [
+                    new THREE.Vector3(0, 3, 0), // Oyuncu pozisyonu
+                    new THREE.Vector3(targetPosition.x, targetPosition.y, targetPosition.z) // Hedef
+                ];
+                
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({ 
+                    color: 0xffff00,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                
+                const line = new THREE.Line(geometry, material);
+                this.scene.add(line);
+                
+                // Kısa süre sonra kaldır
+                setTimeout(() => {
+                    this.scene.remove(line);
+                }, 100);
             }
 
 
@@ -1200,14 +1574,14 @@
                 this.updateGearSystem();
                 this.updateMachineBreakdowns();
                 
+                // Zombi sistemini güncelle
+                this.updateZombieSystem();
+                
                 // Zaman kontrolü
                 this.checkTimeLimit();
 
                 // Oyuncu hareketi
                 this.updatePlayerMovement();
-                
-                // Zıplama güncellemesi
-                this.updateJump();
 
                 // 3D animasyonları güncelle
                 this.update3DAnimations();
@@ -1372,6 +1746,234 @@
                 
                 // Check gear collection
                 this.checkGearCollection();
+            }
+
+            updateZombieSystem() {
+                // Zombi spawn kontrolü
+                this.spawnZombie();
+                
+                // Tüm zombileri güncelle
+                for (let i = this.sceneObjects.zombies.length - 1; i >= 0; i--) {
+                    const zombie = this.sceneObjects.zombies[i];
+                    this.updateZombie(zombie, i);
+                }
+                
+                // Ölü zombileri temizle
+                this.cleanupDeadZombies();
+            }
+
+            updateZombie(zombie, index) {
+                if (!zombie || !zombie.userData) return;
+                
+                const zombieData = zombie.userData;
+                const now = Date.now();
+                
+                // Ölü zombi kontrolü
+                if (zombieData.state === 'dead') {
+                    if (now - zombieData.deathTime > 3000) { // 3 saniye sonra kaybolsun
+                        this.removeZombie(index);
+                    }
+                    return;
+                }
+                
+                // Oyuncuya olan mesafe
+                const distance = Math.sqrt(
+                    Math.pow(zombie.position.x, 2) + 
+                    Math.pow(zombie.position.z, 2)
+                );
+                
+                // Zombi davranışları
+                if (distance < 2) {
+                    // Yakın mesafede - saldırı
+                    this.zombieAttack(zombie);
+                } else if (distance < 30) {
+                    // Orta mesafede - oyuncuya doğru hareket
+                    this.moveZombieTowardsPlayer(zombie);
+                } else {
+                    // Çok uzakta - zombiyi sil (performans için)
+                    this.removeZombie(index);
+                }
+                
+                // Zombi animasyonu
+                this.animateZombie(zombie);
+            }
+
+            moveZombieTowardsPlayer(zombie) {
+                if (!zombie || !zombie.userData) return;
+                
+                const zombieData = zombie.userData;
+                
+                // Oyuncuya doğru yön hesapla (oyuncu her zaman merkezde)
+                const direction = new THREE.Vector3(
+                    -zombie.position.x,
+                    0,
+                    -zombie.position.z
+                ).normalize();
+                
+                // Zombiyi hareket ettir
+                zombie.position.x += direction.x * zombieData.speed;
+                zombie.position.z += direction.z * zombieData.speed;
+                
+                // Zombiyi oyuncuya doğru döndür
+                zombie.lookAt(0, zombie.position.y, 0);
+                zombie.rotation.y += Math.PI; // Düzeltme
+            }
+
+            zombieAttack(zombie) {
+                if (!zombie || !zombie.userData) return;
+                
+                const zombieData = zombie.userData;
+                const now = Date.now();
+                
+                // Saldırı cooldown kontrolü
+                if (now - zombieData.lastAttack < zombieData.attackCooldown) {
+                    return;
+                }
+                
+                // Oyuncuya hasar ver
+                this.playerTakeDamage(zombieData.damage);
+                zombieData.lastAttack = now;
+                
+                // Saldırı animasyonu
+                this.playZombieAttackAnimation(zombie);
+                
+                console.log(`Zombi saldırdı! Hasar: ${zombieData.damage}`);
+            }
+
+            playerTakeDamage(damage) {
+                this.gameState.health -= damage;
+                
+                if (this.gameState.health <= 0) {
+                    this.gameState.health = 0;
+                    this.gameState.isGameOver = true;
+                    this.showGameOver(false, 'Zombiler tarafından öldürüldün!');
+                }
+                
+                // Ekran titreşimi efekti
+                if (window.FarcadeSDK && window.FarcadeSDK.singlePlayer.actions.hapticFeedback) {
+                    window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+                }
+                
+                console.log(`Oyuncu hasar aldı! Kalan can: ${this.gameState.health}`);
+            }
+
+            // Eski yakın mesafe öldürme sistemi kaldırıldı - artık silah sistemi kullanılıyor
+
+            killZombie(zombie, index) {
+                if (!zombie || !zombie.userData) return;
+                
+                // Zombiyi öldü olarak işaretle
+                zombie.userData.state = 'dead';
+                zombie.userData.deathTime = Date.now();
+                
+                // Ölüm animasyonu - zombiyi yere düşür
+                zombie.rotation.z = Math.PI / 2; // Yan yatar
+                zombie.position.y = 1;
+                
+                // Rengi değiştir (gri yap)
+                zombie.children.forEach(child => {
+                    if (child.material) {
+                        child.material = child.material.clone();
+                        child.material.color.setHex(0x444444);
+                    }
+                });
+                
+                // Puanlama ve ödüller
+                this.gameState.zombiesKilled++;
+                
+                // Zombi öldürme bonusu
+                const killBonus = 25;
+                this.tycoon.money += killBonus;
+                this.gameState.totalEarned += killBonus;
+                
+                console.log(`Zombi öldürüldü! +$${killBonus} bonus. Toplam öldürülen: ${this.gameState.zombiesKilled}`);
+                
+                // UI güncelle
+                this.updateTycoonUI();
+            }
+
+            removeZombie(index) {
+                if (index >= 0 && index < this.sceneObjects.zombies.length) {
+                    const zombie = this.sceneObjects.zombies[index];
+                    this.scene.remove(zombie);
+                    this.sceneObjects.zombies.splice(index, 1);
+                }
+            }
+
+            cleanupDeadZombies() {
+                for (let i = this.sceneObjects.zombies.length - 1; i >= 0; i--) {
+                    const zombie = this.sceneObjects.zombies[i];
+                    
+                    if (!zombie || !zombie.userData) {
+                        this.removeZombie(i);
+                        continue;
+                    }
+                    
+                    if (zombie.userData.state === 'dead' && 
+                        Date.now() - zombie.userData.deathTime > 3000) {
+                        this.removeZombie(i);
+                    }
+                }
+            }
+
+            animateZombie(zombie) {
+                if (!zombie || !zombie.userData) return;
+                
+                const time = Date.now() * 0.001;
+                const zombieData = zombie.userData;
+                
+                if (zombieData.state === 'dead') return;
+                
+                // Yürüme animasyonu - daha yavaş ve sallantılı
+                const walkSpeed = 3;
+                const legSwing = Math.sin(time * walkSpeed) * 0.2;
+                
+                // Bacakları hareket ettir
+                const leftLeg = zombie.children.find(child => child.position.x === -0.25);
+                const rightLeg = zombie.children.find(child => child.position.x === 0.25);
+                
+                if (leftLeg) leftLeg.rotation.x = legSwing;
+                if (rightLeg) rightLeg.rotation.x = -legSwing;
+                
+                // Kolları da salla (zombi gibi)
+                const leftArm = zombie.children.find(child => child.position.x === -0.7);
+                const rightArm = zombie.children.find(child => child.position.x === 0.7);
+                
+                if (leftArm) leftArm.rotation.x = -legSwing * 0.3;
+                if (rightArm) rightArm.rotation.x = legSwing * 0.3;
+                
+                // Hafif sallanma hareketi
+                zombie.position.y = 2.8 + Math.sin(time * walkSpeed) * 0.05;
+                
+                // Gözlerin parlaması
+                const eyeFlicker = Math.sin(time * 10) * 0.3 + 0.7;
+                zombie.children.forEach(child => {
+                    if (child.material && child.material.emissive && child.material.emissive.r > 0) {
+                        child.material.emissive.setRGB(eyeFlicker * 0.3, 0, 0);
+                    }
+                });
+            }
+
+            playZombieAttackAnimation(zombie) {
+                if (!zombie) return;
+                
+                // Saldırı animasyonu - kolları öne uzat
+                const leftArm = zombie.children.find(child => child.position.x === -0.7);
+                const rightArm = zombie.children.find(child => child.position.x === 0.7);
+                
+                if (leftArm) {
+                    leftArm.rotation.x = -Math.PI / 3;
+                    setTimeout(() => {
+                        if (leftArm) leftArm.rotation.x = 0;
+                    }, 500);
+                }
+                
+                if (rightArm) {
+                    rightArm.rotation.x = -Math.PI / 3;
+                    setTimeout(() => {
+                        if (rightArm) rightArm.rotation.x = 0;
+                    }, 500);
+                }
             }
             
             updateMachineBreakdowns() {
@@ -1639,12 +2241,12 @@
             // Tycoon UI ve challenge fonksiyonları kaldırıldı
 
             showGameOver(won, message) {
-                // Calculate final score: money + (spaceCount * 10) + timeBonus
-                const spaceBonus = this.gameState.spaceCount * 10;
-                const totalScore = this.tycoon.money + spaceBonus + this.gameState.timeBonus;
+                // Calculate final score: money + timeBonus
+                const totalScore = this.tycoon.money + this.gameState.timeBonus;
                 
                 console.log(`Game Over: ${won ? 'WON' : 'LOST'} - ${message}`);
                 console.log(`Final Score: $${Math.floor(totalScore)}`);
+                console.log(`Breakdown: Money: $${this.tycoon.money}, Time Bonus: $${this.gameState.timeBonus}`);
                 
                 // Notify Farcade with final score
                 window.FarcadeSDK.singlePlayer.actions.gameOver({ 
@@ -1885,6 +2487,19 @@
                 moveX -= this.movement.joystick.y * Math.sin(cameraAngle) * this.movement.speed;
                 moveZ -= this.movement.joystick.y * Math.cos(cameraAngle) * this.movement.speed;
 
+                // Hareket yönünü kaydet (nişan alma için)
+                if (Math.abs(moveX) > 0.01 || Math.abs(moveZ) > 0.01) {
+                    // Hareket yönünü normalize et
+                    const moveLength = Math.sqrt(moveX * moveX + moveZ * moveZ);
+                    this.gameState.aiming.lastMoveDirection.x = moveX / moveLength;
+                    this.gameState.aiming.lastMoveDirection.z = moveZ / moveLength;
+                    this.gameState.aiming.aimDirection.x = moveX / moveLength;
+                    this.gameState.aiming.aimDirection.z = moveZ / moveLength;
+                    
+                    // Oyuncuyu hareket yönüne döndür
+                    this.rotatePlayerToMoveDirection();
+                }
+
                 // Oyuncuyu hareket ettir
                 const newX = this.sceneObjects.player.position.x + moveX;
                 const newZ = this.sceneObjects.player.position.z + moveZ;
@@ -1907,6 +2522,26 @@
                     // İzole bakış açısı - oyuncu merkezde kalır
                     this.updateIsometricView();
                 }
+            }
+
+            rotatePlayerToMoveDirection() {
+                if (!this.sceneObjects.player) return;
+                
+                const moveDir = this.gameState.aiming.aimDirection;
+                const targetRotation = Math.atan2(moveDir.x, moveDir.z);
+                
+                // Yumuşak döndürme
+                const currentRotation = this.sceneObjects.player.rotation.y;
+                const rotationDiff = targetRotation - currentRotation;
+                
+                // En kısa yolu bul
+                let shortestRotation = rotationDiff;
+                if (rotationDiff > Math.PI) shortestRotation -= 2 * Math.PI;
+                if (rotationDiff < -Math.PI) shortestRotation += 2 * Math.PI;
+                
+                // Hızlı döndürme
+                const rotationSpeed = 0.2;
+                this.sceneObjects.player.rotation.y += shortestRotation * rotationSpeed;
             }
 
             updateIsometricView() {
@@ -1959,6 +2594,12 @@
                 this.sceneObjects.gears.forEach(gear => {
                     gear.position.x += offsetX;
                     gear.position.z += offsetZ;
+                });
+
+                // Zombileri hareket ettir
+                this.sceneObjects.zombies.forEach(zombie => {
+                    zombie.position.x += offsetX;
+                    zombie.position.z += offsetZ;
                 });
 
                 // Kar sistemini hareket ettir
@@ -2018,44 +2659,8 @@
                         if (leftArm) leftArm.rotation.x = -legSwing * 0.5;
                         if (rightArm) rightArm.rotation.x = legSwing * 0.5;
                         
-                        // Hafif yukarı-aşağı hareket (adım atma efekti) - sadece zıplamıyorsa
-                        if (!this.movement.jump.isJumping) {
-                            player.position.y = 3 + Math.abs(Math.sin(time * walkSpeed)) * 0.1;
-                        }
-                        
-                        // Karakteri hareket yönüne göre döndür (karakter zaten 180 derece döndürülmüş)
-                        let targetRotation = Math.PI; // Varsayılan olarak 180 derece
-                        
-                        if (this.movement.keys.w || this.movement.keys.ArrowUp) {
-                            // İleri - kameranın baktığı yön
-                            targetRotation = Math.atan2(-15, 15);
-                        } else if (this.movement.keys.s || this.movement.keys.ArrowDown) {
-                            // Geri - kameranın baktığı yönün tersi
-                            targetRotation = Math.atan2(-15, 15) + Math.PI;
-                        } else if (this.movement.keys.a || this.movement.keys.ArrowLeft) {
-                            // Sol - kameranın soluna doğru
-                            targetRotation = Math.atan2(-15, 15) + Math.PI / 2;
-                        } else if (this.movement.keys.d || this.movement.keys.ArrowRight) {
-                            // Sağ - kameranın sağına doğru
-                            targetRotation = Math.atan2(-15, 15) - Math.PI / 2;
-                        }
-                        
-                        // Joystick için de döndürme
-                        if (Math.abs(this.movement.joystick.x) > 0.1 || Math.abs(this.movement.joystick.y) > 0.1) {
-                            targetRotation = Math.atan2(-this.movement.joystick.y, this.movement.joystick.x) + Math.atan2(-15, 15);
-                        }
-                        
-                        // Yumuşak döndürme
-                        const rotationSpeed = 0.1;
-                        const currentRotation = player.rotation.y;
-                        const rotationDiff = targetRotation - currentRotation;
-                        
-                        // En kısa yolu bul (180 derece üzerinden dönmemek için)
-                        let shortestRotation = rotationDiff;
-                        if (rotationDiff > Math.PI) shortestRotation -= 2 * Math.PI;
-                        if (rotationDiff < -Math.PI) shortestRotation += 2 * Math.PI;
-                        
-                        player.rotation.y += shortestRotation * rotationSpeed;
+                        // Hafif yukarı-aşağı hareket (adım atma efekti)
+                        player.position.y = 3 + Math.abs(Math.sin(time * walkSpeed)) * 0.1;
                     } else {
                         // Durduğunda bacakları düzelt
                         const leftLeg = player.children.find(child => child.position.x === -0.3);
@@ -2068,10 +2673,8 @@
                         if (leftArm) leftArm.rotation.x = 0;
                         if (rightArm) rightArm.rotation.x = 0;
                         
-                        // Y pozisyonunu sıfırla - sadece zıplamıyorsa
-                        if (!this.movement.jump.isJumping) {
-                            player.position.y = 3;
-                        }
+                        // Y pozisyonunu sıfırla
+                        player.position.y = 3;
                     }
                 }
 
@@ -2117,10 +2720,23 @@
             // resourceDecayLoop fonksiyonu kaldırıldı
 
             updateUI() {
-                // Score and space counter update - tycoon game
+                // Score update - tycoon game
                 document.getElementById('scoreDisplay').textContent = `Score: ${this.gameState.score}`;
-                document.getElementById('spaceCounter').textContent = `🚀 Space: ${this.gameState.spaceCount}`;
-                document.getElementById('gearCounter').textContent = `⚙️ Gears: ${this.gameState.gears}`;
+                
+                // Update health bar
+                const healthPercent = (this.gameState.health / this.gameState.maxHealth) * 100;
+                document.getElementById('healthFill').style.width = `${healthPercent}%`;
+                document.getElementById('healthText').textContent = `❤️ ${this.gameState.health}/${this.gameState.maxHealth}`;
+                
+                // Health bar color based on health
+                const healthFill = document.getElementById('healthFill');
+                if (healthPercent > 60) {
+                    healthFill.style.background = 'linear-gradient(90deg, #10b981 0%, #059669 100%)'; // Green
+                } else if (healthPercent > 30) {
+                    healthFill.style.background = 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)'; // Orange
+                } else {
+                    healthFill.style.background = 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)'; // Red
+                }
                 
                 // Update time counter (countdown from 3:30)
                 const elapsedTime = (Date.now() - this.gameState.startTime) / 1000;
