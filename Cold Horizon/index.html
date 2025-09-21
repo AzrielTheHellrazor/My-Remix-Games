@@ -152,58 +152,6 @@
             padding-top: 8px;
         }
 
-        .game-over-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-            pointer-events: none;
-        }
-
-        .game-over-screen.show {
-            opacity: 1;
-            visibility: visible;
-            pointer-events: all;
-        }
-
-        .game-over-title {
-            font-size: 48px;
-            font-weight: bold;
-            color: #60a5fa;
-            text-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
-        }
-
-        .final-score {
-            font-size: 24px;
-            color: #fbbf24;
-        }
-
-        .restart-btn {
-            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
-            border: none;
-            color: white;
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-            pointer-events: all;
-        }
-
-        .restart-btn:hover {
-            transform: scale(1.05);
-        }
-
 
         /* Mobil Joystick */
         .mobile-controls {
@@ -270,20 +218,26 @@
         
         <!-- Three.js CDN -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <!-- Farcade SDK -->
+        <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
         
         <div class="ui-overlay">
             <!-- Tycoon UI -->
             <div class="tycoon-ui" id="tycoonUI">
-                <div class="money-display" id="moneyDisplay">💰 $100</div>
-                <div class="income-display" id="incomeDisplay">📈 +$0/sn</div>
+                <div class="money-display" id="moneyDisplay">💰 $500</div>
+                <div class="income-display" id="incomeDisplay">📈 +$0/sec</div>
                 <div class="upgrade-info" id="upgradeInfo">
-                    🏭 Platformlara basarak geliştirme yapın!
+                    🏭 Step on platforms to buy upgrades!
                 </div>
             </div>
             
             <div class="top-ui">
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <div class="score" id="scoreDisplay">Score: 0</div>
-                <div class="space-counter" style="background: rgba(0, 0, 0, 0.7); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; color: #60a5fa; border: 2px solid #3b82f6; margin-top: 10px;" id="spaceCounter">🚀 Space: 0</div>
+                    <div class="time-counter" style="background: rgba(0, 0, 0, 0.7); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; color: #10b981; border: 2px solid #059669;" id="timeCounter">⏱️ Time: 0:00</div>
+                    <div class="space-counter" style="background: rgba(0, 0, 0, 0.7); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; color: #60a5fa; border: 2px solid #3b82f6;" id="spaceCounter">🚀 Space: 0</div>
+                    <div class="gear-counter" style="background: rgba(0, 0, 0, 0.7); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; color: #fbbf24; border: 2px solid #f59e0b;" id="gearCounter">⚙️ Gears: 0</div>
+                </div>
                 <!-- Resource bars removed - tycoon only -->
             </div>
 
@@ -296,26 +250,11 @@
             </div>
 
             <!-- Klavye kontrolü göstergesi ve minimap kaldırıldı -->
-
-            <div class="game-over-screen" id="gameOverScreen">
-                <div class="game-over-title">GAME OVER!</div>
-                <div class="final-score" id="finalScore">Final Score: 0</div>
-                <button class="restart-btn" id="restartBtn">Restart Game</button>
-            </div>
         </div>
     </div>
 
     <script>
-        // Farcade SDK Mock (gerçek SDK yüklendiğinde değiştirilecek)
-        const Farcade = {
-            ready: () => console.log('Farcade ready'),
-            gameOver: (data) => console.log('Game over:', data),
-            hapticFeedback: () => {
-                if (navigator.vibrate) {
-                    navigator.vibrate(50);
-                }
-            }
-        };
+        // Farcade SDK Integration
 
         class ColdHorizon3D {
             constructor() {
@@ -330,34 +269,42 @@
                 // Basit oyun durumu
                 this.gameState = {
                     score: 0,
+                    totalEarned: 0, // Total money earned (never decreases)
                     isGameOver: false,
                     gameWon: false,
-                    spaceCount: 0 // Space key press counter
+                    spaceCount: 0, // Space key press counter
+                    gears: 0, // Collected gears for repairs
+                    lastBreakdownTime: 0,
+                    brokenMachines: [], // IDs of broken machines
+                    startTime: Date.now(), // Game start time for speed bonus
+                    timeBonus: 0, // Bonus points for completing fast
+                    timeLimit: 210, // 3:30 in seconds
+                    gameEnded: false
                 };
 
                 // Yeni Tycoon Sistemi
                 this.tycoon = {
-                    money: 100,
+                    money: 500, // Başlangıç parası artırıldı
                     moneyPerSecond: 0,
                     lastIncomeTime: Date.now(),
                     level: 0,
                     upgrades: [
                         {
                             id: 1,
-                            name: 'Palet Alanı',
-                            description: 'Temel depolama alanı',
-                            cost: 100,
-                            income: 5,
+                            name: 'Storage Area',
+                            description: 'Basic storage facility',
+                            cost: 200,
+                            income: 20,
                             bought: false,
                             position: { x: -8, z: 6 },
                             objects: []
                         },
                         {
                             id: 2,
-                            name: 'Üretim Makinesi',
-                            description: 'Otomatik üretim',
-                            cost: 300,
-                            income: 15,
+                            name: 'Production Machine',
+                            description: 'Automated production',
+                            cost: 600,
+                            income: 50,
                             bought: false,
                             position: { x: -4, z: 6 },
                             objects: [],
@@ -365,10 +312,10 @@
                         },
                         {
                             id: 3,
-                            name: 'Konveyor Bandı',
-                            description: 'Ürünleri taşır',
-                            cost: 600,
-                            income: 25,
+                            name: 'Conveyor Belt',
+                            description: 'Transports products',
+                            cost: 1200,
+                            income: 80,
                             bought: false,
                             position: { x: 0, z: 6 },
                             objects: [],
@@ -376,10 +323,10 @@
                         },
                         {
                             id: 4,
-                            name: 'Paketleme Ünitesi',
-                            description: 'Ürünleri paketler',
-                            cost: 1200,
-                            income: 40,
+                            name: 'Packaging Unit',
+                            description: 'Packages products',
+                            cost: 2000,
+                            income: 120,
                             bought: false,
                             position: { x: 4, z: 6 },
                             objects: [],
@@ -387,10 +334,10 @@
                         },
                         {
                             id: 5,
-                            name: 'Kargo Merkezi',
-                            description: 'Ürünleri gönderir',
-                            cost: 2500,
-                            income: 70,
+                            name: 'Shipping Center',
+                            description: 'Ships products',
+                            cost: 3500,
+                            income: 180,
                             bought: false,
                             position: { x: 8, z: 6 },
                             objects: [],
@@ -398,10 +345,10 @@
                         },
                         {
                             id: 6,
-                            name: 'Kalite Kontrol',
-                            description: 'Kaliteyi artırır',
-                            cost: 5000,
-                            income: 120,
+                            name: 'Quality Control',
+                            description: 'Improves quality',
+                            cost: 6000,
+                            income: 250,
                             bought: false,
                             position: { x: 8, z: 2 },
                             objects: [],
@@ -409,10 +356,10 @@
                         },
                         {
                             id: 7,
-                            name: 'Ar-Ge Merkezi',
-                            description: 'Yeni teknolojiler',
+                            name: 'R&D Center',
+                            description: 'New technologies',
                             cost: 10000,
-                            income: 200,
+                            income: 400,
                             bought: false,
                             position: { x: 4, z: 2 },
                             objects: [],
@@ -420,10 +367,10 @@
                         },
                         {
                             id: 8,
-                            name: 'Otomasyon Sistemi',
-                            description: 'Tam otomatik üretim',
-                            cost: 20000,
-                            income: 350,
+                            name: 'Automation System',
+                            description: 'Fully automated production',
+                            cost: 15000,
+                            income: 600,
                             bought: false,
                             position: { x: 0, z: 2 },
                             objects: [],
@@ -443,7 +390,8 @@
                     houses: [],
                     world: null,
                     tycoonPlatforms: [],
-                    tycoonObjects: []
+                    tycoonObjects: [],
+                    gears: [] // Collectible gears on ground
                 };
 
                 // Hareket sistemi
@@ -461,7 +409,7 @@
                         velocity: 0,
                         gravity: -0.02,
                         jumpPower: 0.6,
-                        groundY: 2
+                        groundY: 3
                     }
                 };
 
@@ -605,12 +553,6 @@
 
                 // Dokunmatik kontroller (artık sadece joystick için)
 
-                // Yeniden başlat
-                document.getElementById('restartBtn').addEventListener('click', () => {
-                    this.restartGame();
-                    Farcade.hapticFeedback();
-                });
-
                 // Mobil joystick
                 this.setupJoystick();
 
@@ -739,6 +681,14 @@
                 if (!this.movement.jump.isJumping) {
                     this.movement.jump.isJumping = true;
                     this.movement.jump.velocity = this.movement.jump.jumpPower;
+                    
+                    // Add money bonus for jumping
+                    const jumpBonus = 50;
+                    this.tycoon.money += jumpBonus;
+                    this.gameState.totalEarned += jumpBonus;
+                    
+                    console.log(`Jump! +$${jumpBonus} bonus`);
+                    this.updateTycoonUI();
                 }
             }
             
@@ -763,6 +713,7 @@
                 this.createWorld();
                 this.createPlayer();
                 this.createTycoonPlatforms();
+                this.spawnInitialGears();
                 this.createSnowSystem();
                 
                 // Tüm objeleri baştan render et
@@ -836,6 +787,42 @@
 
             // Tycoon platformları kaldırıldı
 
+            spawnInitialGears() {
+                // Initial gears scattered around the map
+                for (let i = 0; i < 10; i++) {
+                    this.spawnGear();
+                }
+            }
+            
+            spawnGear() {
+                // Create gear geometry
+                const gearGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 8);
+                const gearMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0xffd700, // Gold
+                    emissive: 0x332200
+                });
+                const gear = new THREE.Mesh(gearGeometry, gearMaterial);
+                
+                // Random position on the map
+                const x = (Math.random() - 0.5) * 30; // Within reasonable range
+                const z = (Math.random() - 0.5) * 30;
+                gear.position.set(x, 0.2, z);
+                
+                // Add rotation animation
+                gear.userData = { 
+                    type: 'gear',
+                    rotationSpeed: Math.random() * 0.02 + 0.01
+                };
+                
+                gear.castShadow = true;
+                gear.frustumCulled = false;
+                
+                this.scene.add(gear);
+                this.sceneObjects.gears.push(gear);
+                
+                console.log(`Gear spawned at (${x.toFixed(1)}, ${z.toFixed(1)})`);
+            }
+            
             // Tycoon bağlantı fonksiyonları kaldırıldı
 
             createTycoonPlatforms() {
@@ -1000,8 +987,10 @@
                 rightFoot.castShadow = true;
                 player.add(rightFoot);
 
-                // Oyuncuyu sahneye ekle - başlangıç pozisyonu 0,2,0 (ayaklar yere girmesin)
-                player.position.set(0, 2, 0);
+                // Oyuncuyu sahneye ekle - başlangıç pozisyonu 0,3,0 (ayaklar tamamen yerin üstünde)
+                player.position.set(0, 3, 0);
+                // Karakteri 180 derece döndür
+                player.rotation.y = Math.PI;
                 this.scene.add(player);
 
                 this.sceneObjects.player = player;
@@ -1176,10 +1165,16 @@
             }
 
             startGame() {
+                // Başlangıç parasını totalEarned'a ekle
+                this.gameState.totalEarned = this.tycoon.money;
+                this.gameState.score = this.gameState.totalEarned;
+                
                 this.gameLoop();
                 this.updateUI(); // UI'yi başlat
                 this.updateTycoonUI(); // Tycoon UI'yi başlat
-                Farcade.ready();
+                
+                // Farcade SDK ready call
+                window.FarcadeSDK.singlePlayer.actions.ready();
             }
 
             gameLoop() {
@@ -1195,11 +1190,18 @@
                 // Oyun bitti mi kontrol et
                 if (this.gameState.isGameOver || this.gameState.gameWon) return;
                 
-                // Basit skor sistemi
-                this.gameState.score += 1;
+                // Score = toplam kazanılan para (harcamalarla azalmaz)
+                this.gameState.score = this.gameState.totalEarned;
                 
                 // Tycoon sistemini güncelle
                 this.updateTycoonSystem();
+                
+                // Gear collection ve machine breakdown
+                this.updateGearSystem();
+                this.updateMachineBreakdowns();
+                
+                // Zaman kontrolü
+                this.checkTimeLimit();
 
                 // Oyuncu hareketi
                 this.updatePlayerMovement();
@@ -1219,10 +1221,28 @@
             updateTycoonSystem() {
                 const now = Date.now();
                 
-                // Gelir üretimi (saniyede bir)
+                // Gelir üretimi (saniye başında anlık artış, bozuk makineler hariç)
                 if (now - this.tycoon.lastIncomeTime >= 1000) {
-                    this.tycoon.money += this.tycoon.moneyPerSecond;
+                    let actualIncome = this.tycoon.moneyPerSecond;
+                    
+                    // Subtract income from broken machines
+                    this.gameState.brokenMachines.forEach(machineId => {
+                        const upgrade = this.tycoon.upgrades.find(u => u.id === machineId);
+                        if (upgrade) {
+                            actualIncome -= upgrade.income;
+                        }
+                    });
+                    
+                    actualIncome = Math.max(actualIncome, 0);
+                    this.tycoon.money += actualIncome;
+                    this.gameState.totalEarned += actualIncome; // Track total earnings
                     this.tycoon.lastIncomeTime = now;
+                    
+                    // Debug log
+                    if (this.gameState.brokenMachines.length > 0) {
+                        console.log(`Income: ${this.tycoon.moneyPerSecond} - ${this.tycoon.moneyPerSecond - actualIncome} = ${actualIncome} (broken machines: ${this.gameState.brokenMachines.length})`);
+                    }
+                    
                     this.updateTycoonUI();
                 }
                 
@@ -1231,19 +1251,40 @@
                 
                 // Platform renklerini güncelle
                 this.updatePlatformColors();
+                
+                // Oyun bitiş kontrolü
+                this.checkGameCompletion();
             }
 
             updateTycoonUI() {
-                document.getElementById('moneyDisplay').textContent = `💰 $${this.tycoon.money.toLocaleString()}`;
-                document.getElementById('incomeDisplay').textContent = `📈 +$${this.tycoon.moneyPerSecond}/sn`;
+                document.getElementById('moneyDisplay').textContent = `💰 $${Math.floor(this.tycoon.money)}`;
                 
-                // Sonraki upgrade bilgisi
-                const nextUpgrade = this.getNextUpgrade();
-                if (nextUpgrade) {
+                // Calculate actual income (minus broken machines)
+                let actualIncome = this.tycoon.moneyPerSecond;
+                this.gameState.brokenMachines.forEach(machineId => {
+                    const upgrade = this.tycoon.upgrades.find(u => u.id === machineId);
+                    if (upgrade) {
+                        actualIncome -= upgrade.income;
+                    }
+                });
+                actualIncome = Math.max(actualIncome, 0);
+                
+                document.getElementById('incomeDisplay').textContent = `📈 +$${actualIncome}/sec`;
+                
+                // Sonraki upgrade bilgisi veya bozuk makine bilgisi
+                if (this.gameState.brokenMachines.length > 0) {
+                    const brokenCount = this.gameState.brokenMachines.length;
+                    const repairCost = 3;
                     document.getElementById('upgradeInfo').innerHTML = 
-                        `🔄 Sonraki: ${nextUpgrade.name}<br>💰 Maliyet: $${nextUpgrade.cost.toLocaleString()}<br>📈 Gelir: +$${nextUpgrade.income}/sn`;
+                        `⚠️ ${brokenCount} machine(s) broken!<br>🔧 Need ${repairCost} gears each to repair<br>⚙️ Walk over gears to collect them`;
                 } else {
-                    document.getElementById('upgradeInfo').innerHTML = '🎉 Tüm geliştirmeler tamamlandı!';
+                    const nextUpgrade = this.getNextUpgrade();
+                if (nextUpgrade) {
+                        document.getElementById('upgradeInfo').innerHTML = 
+                            `🔄 Next: ${nextUpgrade.name}<br>💰 Cost: $${nextUpgrade.cost}<br>📈 Income: +$${nextUpgrade.income}/sec`;
+                    } else {
+                        document.getElementById('upgradeInfo').innerHTML = '🎉 All upgrades completed!';
+                    }
                 }
             }
             
@@ -1270,6 +1311,9 @@
                         
                         if (!upgrade.bought && this.canBuyUpgrade(upgrade)) {
                             this.buyUpgrade(upgrade);
+                        } else if (upgrade.bought && this.gameState.brokenMachines.includes(upgrade.id)) {
+                            // Try to repair broken machine
+                            this.repairMachine(upgrade.id);
                         }
                     }
                 });
@@ -1296,12 +1340,10 @@
                 // UI'yi güncelle
                 this.updateTycoonUI();
                 
-                console.log(`✅ ${upgrade.name} satın alındı! Yeni gelir: +$${this.tycoon.moneyPerSecond}/sn`);
+                console.log(`✅ ${upgrade.name} purchased! New income: +$${this.tycoon.moneyPerSecond}/sec`);
                 
                 // Haptic feedback
-                if (typeof Farcade !== 'undefined' && Farcade.hapticFeedback) {
-                    Farcade.hapticFeedback();
-                }
+                window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
             }
             
             updatePlatformColors() {
@@ -1309,14 +1351,192 @@
                     const upgrade = platform.userData.upgrade;
                     let newColor = 0x6b7280; // Gri - kilitli
                     
-                    if (upgrade.bought) {
-                        newColor = 0x10b981; // Yeşil - satın alınmış
+                    if (upgrade.bought && this.gameState.brokenMachines.includes(upgrade.id)) {
+                        newColor = 0xff0000; // Kırmızı - bozuk makine
+                        console.log(`Platform ${upgrade.name} is RED (broken)`);
+                    } else if (upgrade.bought) {
+                        newColor = 0x10b981; // Yeşil - satın alınmış ve çalışıyor
                     } else if (this.canBuyUpgrade(upgrade)) {
                         newColor = 0xf59e0b; // Sarı - satın alınabilir
                     }
                     
                     platform.material.color.setHex(newColor);
                 });
+            }
+            
+            updateGearSystem() {
+                // Animate gears rotation
+                this.sceneObjects.gears.forEach(gear => {
+                    gear.rotation.y += gear.userData.rotationSpeed;
+                });
+                
+                // Check gear collection
+                this.checkGearCollection();
+            }
+            
+            updateMachineBreakdowns() {
+                const now = Date.now();
+                
+                // Random machine breakdown (every 10-20 seconds for testing)
+                if (now - this.gameState.lastBreakdownTime > 10000 + Math.random() * 10000) {
+                    this.breakRandomMachine();
+                    this.gameState.lastBreakdownTime = now;
+                }
+                
+                // Update broken machine visuals
+                this.updateBrokenMachineVisuals();
+            }
+            
+            checkGearCollection() {
+                if (!this.sceneObjects.player) return;
+                
+                const collectionRange = 1.5;
+                
+                for (let i = this.sceneObjects.gears.length - 1; i >= 0; i--) {
+                    const gear = this.sceneObjects.gears[i];
+                    
+                    // Calculate distance to player (player is always at center)
+                    const distance = Math.sqrt(
+                        Math.pow(gear.position.x, 2) + 
+                        Math.pow(gear.position.z, 2)
+                    );
+                    
+                    if (distance < collectionRange) {
+                        // Collect gear
+                        this.gameState.gears++;
+                        
+                        // Add money bonus for collecting gear
+                        const gearBonus = 10;
+                        this.tycoon.money += gearBonus;
+                        this.gameState.totalEarned += gearBonus;
+                        
+                        console.log(`Gear collected! +$${gearBonus} Total gears: ${this.gameState.gears}`);
+                        
+                        // Remove gear from scene
+                        this.scene.remove(gear);
+                        this.sceneObjects.gears.splice(i, 1);
+                        
+                        // Spawn new gear to maintain count
+                        setTimeout(() => this.spawnGear(), 2000);
+                        
+                        // Update UI
+                        this.updateUI();
+                        this.updateTycoonUI();
+                        
+                        // Haptic feedback
+                        if (typeof Farcade !== 'undefined' && Farcade.hapticFeedback) {
+                            Farcade.hapticFeedback();
+                        }
+                    }
+                }
+            }
+            
+            breakRandomMachine() {
+                // Get purchased machines that aren't already broken
+                const availableMachines = this.tycoon.upgrades.filter(upgrade => 
+                    upgrade.bought && !this.gameState.brokenMachines.includes(upgrade.id)
+                );
+                
+                if (availableMachines.length === 0) return;
+                
+                // Break random machine
+                const randomMachine = availableMachines[Math.floor(Math.random() * availableMachines.length)];
+                this.gameState.brokenMachines.push(randomMachine.id);
+                
+                console.log(`⚠️ ${randomMachine.name} broke down! Needs 3 gears to repair.`);
+                console.log(`Broken machines: [${this.gameState.brokenMachines.join(', ')}]`);
+                
+                // Update platform colors and UI immediately
+                this.updatePlatformColors();
+                this.updateTycoonUI();
+            }
+            
+            updateBrokenMachineVisuals() {
+                // Make broken machines flash red
+                this.gameState.brokenMachines.forEach(machineId => {
+                    const machine = this.sceneObjects.tycoonObjects.find(obj => 
+                        obj.userData.type === 'tycoonObject' && obj.userData.upgradeId === machineId
+                    );
+                    
+                    if (machine) {
+                        const time = Date.now() * 0.003;
+                        const flash = Math.sin(time) * 0.5 + 0.5;
+                        machine.material.emissive.setRGB(flash * 0.5, 0, 0); // Red flash
+                    }
+                });
+            }
+            
+            repairMachine(machineId) {
+                const gearCost = 3;
+                
+                if (this.gameState.gears >= gearCost) {
+                    // Remove gears
+                    this.gameState.gears -= gearCost;
+                    
+                    // Remove from broken list
+                    const index = this.gameState.brokenMachines.indexOf(machineId);
+                    if (index > -1) {
+                        this.gameState.brokenMachines.splice(index, 1);
+                    }
+                    
+                    // Reset machine visual
+                    const machine = this.sceneObjects.tycoonObjects.find(obj => 
+                        obj.userData.type === 'tycoonObject' && obj.userData.upgradeId === machineId
+                    );
+                    
+                    if (machine) {
+                        machine.material.emissive.setRGB(0, 0, 0); // Remove flash
+                    }
+                    
+                    const upgrade = this.tycoon.upgrades.find(u => u.id === machineId);
+                    console.log(`🔧 ${upgrade.name} repaired! -${gearCost} gears`);
+                    
+                    // Update platform colors immediately
+                    this.updatePlatformColors();
+                    this.updateUI();
+                    this.updateTycoonUI();
+                    
+                    return true;
+                }
+                
+                console.log(`Need ${gearCost} gears to repair. Current: ${this.gameState.gears}`);
+                return false;
+            }
+            
+            checkTimeLimit() {
+                if (this.gameState.gameEnded) return;
+                
+                const elapsedTime = (Date.now() - this.gameState.startTime) / 1000;
+                const remainingTime = this.gameState.timeLimit - elapsedTime;
+                
+                if (remainingTime <= 0) {
+                    this.gameState.isGameOver = true;
+                    this.gameState.gameEnded = true;
+                    this.showGameOver(false, 'Time is up! You ran out of time.');
+                }
+            }
+            
+            checkGameCompletion() {
+                // Tüm upgrade'ler satın alındı mı kontrol et
+                const allUpgradesBought = this.tycoon.upgrades.every(upgrade => upgrade.bought);
+                
+                if (allUpgradesBought && !this.gameState.gameWon) {
+                    this.gameState.gameWon = true;
+                    this.gameState.gameEnded = true;
+                    
+                    // Calculate remaining time bonus
+                    const elapsedTime = (Date.now() - this.gameState.startTime) / 1000;
+                    const remainingTime = Math.max(0, this.gameState.timeLimit - elapsedTime);
+                    
+                    // Time bonus: 10 points per remaining second
+                    this.gameState.timeBonus = Math.floor(remainingTime * 10);
+                    
+                    const remainingMinutes = Math.floor(remainingTime / 60);
+                    const remainingSeconds = Math.floor(remainingTime % 60);
+                    const timeText = `${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+                    
+                    this.showGameOver(true, `Congratulations! Completed with ${timeText} remaining! Time Bonus: +${this.gameState.timeBonus} points`);
+                }
             }
             
             isUpgradeBought(upgradeId) {
@@ -1328,59 +1548,59 @@
                 let geometry, material, mesh;
                 
                 switch(upgrade.id) {
-                    case 1: // Palet Alanı
-                        // Ahşap palet oluştur
+                    case 1: // Storage Area
+                        // Create wooden pallet
                         geometry = new THREE.BoxGeometry(2, 0.3, 1.5);
-                        material = new THREE.MeshLambertMaterial({ color: 0x8B4513 }); // Kahverengi
+                        material = new THREE.MeshLambertMaterial({ color: 0x8B4513 }); // Brown
                         mesh = new THREE.Mesh(geometry, material);
                         mesh.position.set(upgrade.position.x, 0.4, upgrade.position.z);
                         break;
                         
-                    case 2: // Üretim Makinesi
+                    case 2: // Production Machine
                         geometry = new THREE.BoxGeometry(2.5, 2, 2);
-                        material = new THREE.MeshLambertMaterial({ color: 0x4682B4 }); // Çelik mavisi
+                        material = new THREE.MeshLambertMaterial({ color: 0x4682B4 }); // Steel blue
                         mesh = new THREE.Mesh(geometry, material);
                         mesh.position.set(upgrade.position.x, 1.2, upgrade.position.z);
                         break;
                         
-                    case 3: // Konveyor Bandı
+                    case 3: // Conveyor Belt
                         geometry = new THREE.BoxGeometry(3, 0.5, 0.8);
-                        material = new THREE.MeshLambertMaterial({ color: 0x2F4F4F }); // Koyu gri
+                        material = new THREE.MeshLambertMaterial({ color: 0x2F4F4F }); // Dark gray
                         mesh = new THREE.Mesh(geometry, material);
                         mesh.position.set(upgrade.position.x, 0.5, upgrade.position.z);
                         break;
                         
-                    case 4: // Paketleme Ünitesi
+                    case 4: // Packaging Unit
                         geometry = new THREE.BoxGeometry(2.2, 1.8, 2.2);
-                        material = new THREE.MeshLambertMaterial({ color: 0xFF8C00 }); // Turuncu
+                        material = new THREE.MeshLambertMaterial({ color: 0xFF8C00 }); // Orange
                         mesh = new THREE.Mesh(geometry, material);
                         mesh.position.set(upgrade.position.x, 1.1, upgrade.position.z);
                         break;
                         
-                    case 5: // Kargo Merkezi
+                    case 5: // Shipping Center
                         geometry = new THREE.BoxGeometry(3, 2.5, 2.5);
-                        material = new THREE.MeshLambertMaterial({ color: 0xDC143C }); // Kırmızı
+                        material = new THREE.MeshLambertMaterial({ color: 0xDC143C }); // Red
                         mesh = new THREE.Mesh(geometry, material);
                         mesh.position.set(upgrade.position.x, 1.4, upgrade.position.z);
                         break;
                         
-                    case 6: // Kalite Kontrol
+                    case 6: // Quality Control
                         geometry = new THREE.BoxGeometry(1.5, 2.5, 1.5);
-                        material = new THREE.MeshLambertMaterial({ color: 0x32CD32 }); // Yeşil
+                        material = new THREE.MeshLambertMaterial({ color: 0x32CD32 }); // Green
                         mesh = new THREE.Mesh(geometry, material);
                         mesh.position.set(upgrade.position.x, 1.4, upgrade.position.z);
                         break;
                         
-                    case 7: // Ar-Ge Merkezi
+                    case 7: // R&D Center
                         geometry = new THREE.BoxGeometry(3, 3, 3);
-                        material = new THREE.MeshLambertMaterial({ color: 0x4169E1 }); // Kraliyet mavisi
+                        material = new THREE.MeshLambertMaterial({ color: 0x4169E1 }); // Royal blue
                         mesh = new THREE.Mesh(geometry, material);
                         mesh.position.set(upgrade.position.x, 1.7, upgrade.position.z);
                         break;
                         
-                    case 8: // Otomasyon Sistemi
+                    case 8: // Automation System
                         geometry = new THREE.BoxGeometry(4, 2, 4);
-                        material = new THREE.MeshLambertMaterial({ color: 0x800080 }); // Mor
+                        material = new THREE.MeshLambertMaterial({ color: 0x800080 }); // Purple
                         mesh = new THREE.Mesh(geometry, material);
                         mesh.position.set(upgrade.position.x, 1.2, upgrade.position.z);
                         break;
@@ -1419,34 +1639,16 @@
             // Tycoon UI ve challenge fonksiyonları kaldırıldı
 
             showGameOver(won, message) {
-                const gameOverScreen = document.getElementById('gameOverScreen');
-                const gameOverTitle = document.querySelector('.game-over-title');
-                const finalScore = document.getElementById('finalScore');
-                
-                // Calculate final score: money + (spaceCount * 10)
+                // Calculate final score: money + (spaceCount * 10) + timeBonus
                 const spaceBonus = this.gameState.spaceCount * 10;
-                const totalScore = this.tycoonState.money + spaceBonus;
+                const totalScore = this.tycoon.money + spaceBonus + this.gameState.timeBonus;
                 
-                if (won) {
-                    gameOverTitle.textContent = 'CONGRATULATIONS!';
-                    gameOverTitle.style.color = '#10b981'; // Green
-                    finalScore.innerHTML = `${message}<br>Final Score: $${this.tycoonState.money} + ${this.gameState.spaceCount} spaces × 10 = $${totalScore}`;
-                } else {
-                    gameOverTitle.textContent = 'GAME OVER!';
-                    gameOverTitle.style.color = '#ef4444'; // Red
-                    finalScore.innerHTML = `${message}<br>Final Score: $${this.tycoonState.money} + ${this.gameState.spaceCount} spaces × 10 = $${totalScore}`;
-                }
-                
-                gameOverScreen.classList.add('show');
+                console.log(`Game Over: ${won ? 'WON' : 'LOST'} - ${message}`);
+                console.log(`Final Score: $${Math.floor(totalScore)}`);
                 
                 // Notify Farcade with final score
-                Farcade.gameOver({ 
-                    score: totalScore,
-                    money: this.tycoonState.money,
-                    spaceCount: this.gameState.spaceCount,
-                    spaceBonus: spaceBonus,
-                    won: won,
-                    message: message
+                window.FarcadeSDK.singlePlayer.actions.gameOver({ 
+                    score: Math.floor(totalScore)
                 });
             }
 
@@ -1529,9 +1731,7 @@
                 this.updateTycoonUI();
                 
                 // Haptic feedback
-                if (typeof Farcade !== 'undefined' && Farcade.hapticFeedback) {
-                    Farcade.hapticFeedback();
-                }
+                window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
             }
 
             // checkRedPlatformCollision removed - now uses normal platform collision system
@@ -1644,21 +1844,7 @@
                 }
             }
 
-            updatePlatformColors() {
-                // Tüm platformların renklerini güncelle
-                this.sceneObjects.tycoonPlatforms.forEach(platform => {
-                    const upgrade = platform.userData.upgrade;
-                    let newColor = 0xff6b35; // Turuncu - satın alınabilir
-                    
-                    if (upgrade.bought) {
-                        newColor = 0x10b981; // Yeşil - satın alınmış
-                    } else if (upgrade.requires && !this.isUpgradeBought(upgrade.requires)) {
-                        newColor = 0x6b7280; // Gri - henüz satın alınamaz
-                    }
-                    
-                    platform.material.color.setHex(newColor);
-                });
-            }
+            // Eski updatePlatformColors fonksiyonu kaldırıldı - yeni versiyonu kullanılıyor
 
             updatePlayerMovement() {
                 if (!this.sceneObjects.player) return;
@@ -1671,7 +1857,7 @@
                 // Bu yüzden hareket eksenlerini kameranın bakış açısına göre ayarlayalım
                 const cameraAngle = Math.atan2(-15, 15); // Kamera açısı (güncellenmiş)
 
-                // Klavye kontrolleri - kameranın bakış açısına göre (düzeltilmiş yönler)
+                // Klavye kontrolleri - karakter 180 derece döndürüldüğü için normal yönler
                 if (this.movement.keys.w || this.movement.keys.ArrowUp) {
                     // İleri - kameranın baktığı yön
                     moveX -= Math.sin(cameraAngle) * this.movement.speed;
@@ -1693,7 +1879,7 @@
                     moveZ -= Math.sin(cameraAngle) * this.movement.speed;
                 }
 
-                // Joystick kontrolleri - düzeltilmiş eksen sistemi
+                // Joystick kontrolleri - karakter döndürüldüğü için normal eksen sistemi
                 moveX -= this.movement.joystick.x * Math.cos(cameraAngle) * this.movement.speed;
                 moveZ += this.movement.joystick.x * Math.sin(cameraAngle) * this.movement.speed;
                 moveX -= this.movement.joystick.y * Math.sin(cameraAngle) * this.movement.speed;
@@ -1768,6 +1954,12 @@
                     obj.position.x += offsetX;
                     obj.position.z += offsetZ;
                 });
+                
+                // Gearları hareket ettir
+                this.sceneObjects.gears.forEach(gear => {
+                    gear.position.x += offsetX;
+                    gear.position.z += offsetZ;
+                });
 
                 // Kar sistemini hareket ettir
                 if (this.sceneObjects.snowSystem) {
@@ -1828,15 +2020,15 @@
                         
                         // Hafif yukarı-aşağı hareket (adım atma efekti) - sadece zıplamıyorsa
                         if (!this.movement.jump.isJumping) {
-                            player.position.y = 2 + Math.abs(Math.sin(time * walkSpeed)) * 0.1;
+                            player.position.y = 3 + Math.abs(Math.sin(time * walkSpeed)) * 0.1;
                         }
                         
-                        // Karakteri hareket yönüne göre döndür
-                        let targetRotation = 0;
+                        // Karakteri hareket yönüne göre döndür (karakter zaten 180 derece döndürülmüş)
+                        let targetRotation = Math.PI; // Varsayılan olarak 180 derece
                         
                         if (this.movement.keys.w || this.movement.keys.ArrowUp) {
                             // İleri - kameranın baktığı yön
-                            targetRotation = Math.atan2(-15, 15); // Kamera açısı
+                            targetRotation = Math.atan2(-15, 15);
                         } else if (this.movement.keys.s || this.movement.keys.ArrowDown) {
                             // Geri - kameranın baktığı yönün tersi
                             targetRotation = Math.atan2(-15, 15) + Math.PI;
@@ -1878,7 +2070,7 @@
                         
                         // Y pozisyonunu sıfırla - sadece zıplamıyorsa
                         if (!this.movement.jump.isJumping) {
-                            player.position.y = 2;
+                            player.position.y = 3;
                         }
                     }
                 }
@@ -1928,6 +2120,15 @@
                 // Score and space counter update - tycoon game
                 document.getElementById('scoreDisplay').textContent = `Score: ${this.gameState.score}`;
                 document.getElementById('spaceCounter').textContent = `🚀 Space: ${this.gameState.spaceCount}`;
+                document.getElementById('gearCounter').textContent = `⚙️ Gears: ${this.gameState.gears}`;
+                
+                // Update time counter (countdown from 3:30)
+                const elapsedTime = (Date.now() - this.gameState.startTime) / 1000;
+                const remainingTime = Math.max(0, this.gameState.timeLimit - elapsedTime);
+                const minutes = Math.floor(remainingTime / 60);
+                const seconds = Math.floor(remainingTime % 60);
+                const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                document.getElementById('timeCounter').textContent = `⏱️ Time: ${timeText}`;
             }
 
             // checkGameOver fonksiyonu kaldırıldı - tycoon oyununda game over yok
@@ -1937,22 +2138,7 @@
                 console.log("Tycoon oyununda game over yok");
             }
 
-            restartGame() {
-                // Oyun durumunu tamamen sıfırla
-                this.gameState = {
-                    score: 0,
-                    isGameOver: false,
-                    gameWon: false,
-                    spaceCount: 0
-                };
-
-                // UI'ı sıfırla
-                this.updateUI();
-                document.getElementById('gameOverScreen').classList.remove('show');
-
-                // Oyunu yeniden başlat
-                this.startGame();
-            }
+            // restartGame fonksiyonu kaldırıldı - Farcade SDK restart'ı handle ediyor
 
             resetFactoryVisuals() {
                 // Tüm upgrade objelerini kaldır
@@ -1990,13 +2176,14 @@
         });
 
         // Farcade SDK event listeners
-        window.addEventListener('play_again', () => {
+        window.FarcadeSDK.on('play_again', () => {
             location.reload();
         });
 
-        window.addEventListener('toggle_mute', () => {
-            // Ses kontrolü (şu anda ses yok)
-            console.log('Ses açık/kapalı');
+        window.FarcadeSDK.on('toggle_mute', (data) => {
+            // Set game audio based on data.isMuted
+            console.log('Audio muted:', data.isMuted);
+            // For example: setMuted(data.isMuted)
         });
     </script>
 </body>
