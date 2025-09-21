@@ -232,15 +232,18 @@
             </div>
             
             <div class="top-ui">
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <div class="score" id="scoreDisplay">Score: 0</div>
-                    <div class="time-counter" style="background: rgba(0, 0, 0, 0.7); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; color: #10b981; border: 2px solid #059669;" id="timeCounter">⏱️ Time: 0:00</div>
-                </div>
-                
-                <!-- Health bar -->
-                <div class="health-bar" style="position: absolute; top: 0; right: 20px; width: 200px; height: 20px; background: rgba(0, 0, 0, 0.7); border-radius: 10px; border: 2px solid #ef4444; overflow: hidden;">
-                    <div class="health-fill" id="healthFill" style="height: 100%; background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); width: 100%; transition: width 0.3s ease;"></div>
-                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);" id="healthText">❤️ 100/100</div>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; width: 100%;">
+                    <!-- Sol taraf: Score ve Time -->
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <div class="score" id="scoreDisplay">Score: 0</div>
+                        <div class="time-counter" style="background: rgba(0, 0, 0, 0.7); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; color: #10b981; border: 2px solid #059669;" id="timeCounter">⏱️ Time: 0:00</div>
+                    </div>
+                    
+                    <!-- Sağ taraf: Health bar -->
+                    <div class="health-bar" style="width: 120px; height: 20px; background: rgba(0, 0, 0, 0.7); border-radius: 10px; border: 2px solid #ef4444; overflow: hidden; position: relative;">
+                        <div class="health-fill" id="healthFill" style="height: 100%; background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); width: 100%; transition: width 0.3s ease;"></div>
+                        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 11px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);" id="healthText">❤️ 100/100</div>
+                    </div>
                 </div>
                 
                 <!-- Crosshair kaldırıldı - hareket yönü nişan sistemi -->
