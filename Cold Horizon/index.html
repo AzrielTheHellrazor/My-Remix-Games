@@ -132,6 +132,34 @@
             font-weight: bold;
         }
 
+        /* Mobile Tycoon UI */
+        @media (max-width: 520px), (pointer: coarse) {
+            .tycoon-ui {
+                bottom: 10px;
+                left: 50%;
+                top: auto;
+                transform: translateX(-50%);
+                min-width: 150px;
+                padding: 8px;
+                font-size: 12px;
+            }
+
+            .money-display {
+                font-size: 14px !important;
+                margin-bottom: 3px !important;
+            }
+
+            .income-display {
+                font-size: 12px !important;
+                margin-bottom: 5px !important;
+            }
+
+            .upgrade-info {
+                font-size: 10px !important;
+                padding-top: 5px !important;
+            }
+        }
+
         .money-display {
             font-size: 18px;
             color: #10b981;
@@ -156,7 +184,7 @@
         /* Mobil Joystick */
         .mobile-controls {
             position: absolute;
-            bottom: 20px;
+            bottom: 80px;
             left: 20px;
             width: 120px;
             height: 120px;
@@ -164,12 +192,49 @@
             visibility: hidden;
             transition: all 0.3s ease;
             pointer-events: none;
+            z-index: 1000;
         }
 
         .mobile-controls.show {
             opacity: 1;
             visibility: visible;
             pointer-events: all;
+        }
+
+        .mobile-shoot-button {
+            position: absolute;
+            bottom: 100px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 0, 0, 0.8);
+            border: 3px solid #ff0000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            font-weight: bold;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .mobile-shoot-button.show {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: all;
+        }
+
+        .mobile-shoot-button:active {
+            background: rgba(255, 0, 0, 1);
+            transform: scale(0.95);
         }
 
         .joystick {
@@ -202,6 +267,81 @@
         /* Klavye kontrolleri göstergesi ve Minimap kaldırıldı */
 
 
+        /* Intro Screen */
+        .intro-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #374151 100%);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .intro-title {
+            font-size: 48px;
+            font-weight: bold;
+            color: #60a5fa;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        .intro-subtitle {
+            font-size: 18px;
+            color: #94a3b8;
+            margin-bottom: 30px;
+            max-width: 400px;
+        }
+
+        .controls-info {
+            background: rgba(0,0,0,0.6);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border: 2px solid #3b82f6;
+        }
+
+        .controls-info h3 {
+            color: #fbbf24;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .control-item {
+            margin: 8px 0;
+            font-size: 16px;
+            color: #e2e8f0;
+        }
+
+        .start-button {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+        }
+
+        .start-button:active {
+            transform: translateY(0);
+        }
+
         @media (max-width: 520px) {
             .game-container {
                 width: 100vw;
@@ -209,12 +349,50 @@
                 border-radius: 0;
                 border: none;
             }
+
+            .intro-title {
+                font-size: 36px;
+            }
+
+            .controls-info {
+                padding: 15px;
+            }
+
+            .control-item {
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="game-container">
         <canvas id="gameCanvas"></canvas>
+        
+        <!-- Intro Screen -->
+        <div class="intro-screen" id="introScreen">
+            <div class="intro-title">❄️ COLD HORIZON 3D 🧟</div>
+            <div class="intro-subtitle">
+                Survive in a frozen world! Build your tycoon empire while fighting zombies. 
+                You have 3:30 to complete all upgrades before time runs out!
+            </div>
+            
+            <div class="controls-info">
+                <h3>🎮 CONTROLS</h3>
+                <div class="control-item">🖱️ <strong>Desktop:</strong> WASD to move, SPACE to shoot</div>
+                <div class="control-item">📱 <strong>Mobile:</strong> Joystick to move, Red button to shoot</div>
+                <div class="control-item">🎯 <strong>Aiming:</strong> You aim where you move!</div>
+            </div>
+            
+            <div class="controls-info">
+                <h3>🏭 OBJECTIVE</h3>
+                <div class="control-item">💰 Build 8 factory upgrades to win</div>
+                <div class="control-item">🧟 Fight zombies (60 HP each - 2 shots to kill)</div>
+                <div class="control-item">⏱️ Complete everything within 3:30</div>
+                <div class="control-item">❤️ Don't let your health reach zero!</div>
+            </div>
+            
+            <button class="start-button" onclick="startGame()">🚀 START GAME</button>
+        </div>
         
         <!-- Three.js CDN -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -239,8 +417,8 @@
                         <div class="time-counter" style="background: rgba(0, 0, 0, 0.7); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; color: #10b981; border: 2px solid #059669;" id="timeCounter">⏱️ Time: 0:00</div>
                     </div>
                     
-                    <!-- Sağ taraf: Health bar -->
-                    <div class="health-bar" style="width: 120px; height: 20px; background: rgba(0, 0, 0, 0.7); border-radius: 10px; border: 2px solid #ef4444; overflow: hidden; position: relative;">
+                    <!-- Sağ taraf: Health bar - same height as other elements -->
+                    <div class="health-bar" style="width: 120px; height: 34px; background: rgba(0, 0, 0, 0.7); border-radius: 10px; border: 2px solid #ef4444; overflow: hidden; position: relative; display: flex; align-items: center;">
                         <div class="health-fill" id="healthFill" style="height: 100%; background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); width: 100%; transition: width 0.3s ease;"></div>
                         <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 11px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);" id="healthText">❤️ 100/100</div>
                     </div>
@@ -258,6 +436,9 @@
                     <div class="joystick-knob" id="joystickKnob"></div>
                 </div>
             </div>
+
+            <!-- Mobil Ateş Butonu -->
+            <div class="mobile-shoot-button" id="mobileShootButton">🔫</div>
 
             <!-- Klavye kontrolü göstergesi ve minimap kaldırıldı -->
         </div>
@@ -599,14 +780,40 @@
             }
 
             detectMobile() {
-                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                              ('ontouchstart' in window) || 
+                              (navigator.maxTouchPoints > 0);
+                              
                 const mobileControls = document.getElementById('mobileControls');
+                const mobileShootButton = document.getElementById('mobileShootButton');
                 
                 if (isMobile) {
                     mobileControls.classList.add('show');
+                    mobileShootButton.classList.add('show');
+                    this.setupMobileShootButton();
                 } else {
                     mobileControls.classList.remove('show');
+                    mobileShootButton.classList.remove('show');
                 }
+            }
+
+            setupMobileShootButton() {
+                const shootButton = document.getElementById('mobileShootButton');
+                
+                shootButton.addEventListener('touchstart', (e) => {
+                    this.shootWeapon();
+                    e.preventDefault();
+                });
+
+                shootButton.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                });
+
+                // Mouse desteği de ekle
+                shootButton.addEventListener('mousedown', (e) => {
+                    this.shootWeapon();
+                    e.preventDefault();
+                });
             }
 
             setupJoystick() {
@@ -2484,11 +2691,11 @@
                     moveZ -= Math.sin(cameraAngle) * this.movement.speed;
                 }
 
-                // Joystick kontrolleri - karakter döndürüldüğü için normal eksen sistemi
-                moveX -= this.movement.joystick.x * Math.cos(cameraAngle) * this.movement.speed;
-                moveZ += this.movement.joystick.x * Math.sin(cameraAngle) * this.movement.speed;
-                moveX -= this.movement.joystick.y * Math.sin(cameraAngle) * this.movement.speed;
-                moveZ -= this.movement.joystick.y * Math.cos(cameraAngle) * this.movement.speed;
+                // Joystick kontrolleri - düzeltilmiş yön sistemi
+                moveX += this.movement.joystick.x * Math.cos(cameraAngle) * this.movement.speed;
+                moveZ -= this.movement.joystick.x * Math.sin(cameraAngle) * this.movement.speed;
+                moveX += this.movement.joystick.y * Math.sin(cameraAngle) * this.movement.speed;
+                moveZ += this.movement.joystick.y * Math.cos(cameraAngle) * this.movement.speed;
 
                 // Hareket yönünü kaydet (nişan alma için)
                 if (Math.abs(moveX) > 0.01 || Math.abs(moveZ) > 0.01) {
@@ -2789,9 +2996,20 @@
             }
         }
 
-        // Oyunu başlat
+        let gameInstance = null;
+
+        // Start game function (called by intro button)
+        function startGame() {
+            document.getElementById('introScreen').style.display = 'none';
+            if (!gameInstance) {
+                gameInstance = new ColdHorizon3D();
+            }
+        }
+
+        // Initialize on load but don't start game yet
         window.addEventListener('load', () => {
-            new ColdHorizon3D();
+            // Show intro screen first
+            document.getElementById('introScreen').style.display = 'flex';
         });
 
         // Farcade SDK event listeners
