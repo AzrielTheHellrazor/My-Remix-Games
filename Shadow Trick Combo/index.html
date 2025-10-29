@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Shadow Trick Combo</title>
+
+    <!-- REQUIRED: Farcade SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@0.2.1/dist/index.min.js">
+      // --- Fullscreen Fit Helper (non-intrusive) ---
+      (function(){
+        let FULLSCREEN_FIT_INITIALIZED = false;
+        function getCanvas(){
+          return document.getElementById('canvas') || document.querySelector('canvas');
+        }
+        function getCtx(cv){
+          try { return (cv && (cv.getContext && cv.getContext('2d'))) ? cv.getContext('2d') : null; } catch(e){ return null; }
+        }
+        function resizeCanvas(){
+          const cv = getCanvas();
+          if(!cv) return;
+          // Detect the intendexwqd logical size (fallback to 400x600 portrait)
+          const intendedW = (cv.__intendedW) || (cv.width && cv.width <= 800 ? cv.width : 400);
+          const intendedH = (cv.__intendedH) || (cv.height && cv.height <= 1200 ? cv.height : 600);
+
+          // Compute scale to fit viewport while preserving aspect ratio
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          const scale = Math.min(vw / intendedW, vh / intendedH);
+          const cssW = Math.max(1, Math.floor(intendedW * scale));
+          const cssH = Math.max(1, Math.floor(intendedH * scale));
+
+          // High-DPI backing store
+          const dpr = window.devicePixelRatio || 1;
+          const targetW = Math.round(intendedW * dpr);
+          const targetH = Math.round(intendedH * dpr);
+          if (cv.width !== targetW || cv.height !== targetH) {
+            cv.width = targetW;
+            cv.height = targetH;
+          }
+
+          // Apply CSS size (visual size)
+          cv.style.width = cssW + 'px';
+          cv.style.height = cssH + 'px';
+
+          const ctx = getCtx(cv);
+          if (ctx && ctx.setTransform) {
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          }
+        }
+        function storeIntendedSizeOnce(){
+          const cv = getCanvas();
+          if(!cv) return;
+          if (!cv.__intendedCaptured) {
+            // If game code set logical size, keep a copy as intended size
+            const w = cv.width || 400;
+            const h = cv.height || 600;
+            cv.__intendedW = w;
+            cv.__intendedH = h;
+            cv.__intendedCaptured = true;
+          }
+        }
+        function initFullscreenFit(){
+          if (FULLSCREEN_FIT_INITIALIZED) return;
+          FULLSCREEN_FIT_INITIALIZED = true;
+          storeIntendedSizeOnce();
+          resizeCanvas();
+          window.addEventListener('resize', resizeCanvas);
+        }
+        // Try to hook after load so we don't interfere with existing init
+        window.addEventListener('load', function(){
+          // Allow game init to set canvas size first, then fit
+          setTimeout(function(){ initFullscreenFit(); }, 0);
+        });
+      })();
+      // --- End Fullscreen Fit Helper ---
+    </script>
+
+    <style>
+      :root {
+        --bg1: #0c0f14;
+        --bg2: #121826;
+        --accent: #66ffcc;
+        --accent2: #9c6bff;
+        --danger: #ff5e6a;
+        --text: #e9f0ff;
+        --ghost: rgba(255, 255, 255, 0.1);
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        background: linear-gradient(180deg, var(--bg1), var(--bg2));
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Arial,
+          sans-serif;
+        color: var(--text);
+        -webkit-tap-highlight-color: transparent;
+        overflow: hidden;
+      }
+      #game-wrapper {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        max-width: 420px; /* portrait, mobile-first */
+        aspect-ratio: 2 / 3;
+        image-rendering: pixelated;
+        touch-action: manipulation;
+        display: block;
+      }
+
+      /* Floating UI overlays */
+      .overlay {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(92vw, 420px);
+        pointer-events: none;
+        text-align: center;
+      }
+      #top-ui {
+        top: 8px;
+      }
+      #bottom-ui {
+        bottom: 10px;
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+          0 8px 20px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(6px);
+        font-weight: 700;
+      }
+
+      .btn {
+        pointer-events: auto;
+        display: inline-block;
+        padding: 14px 20px;
+        margin-top: 10px;
+        background: radial-gradient(120% 120% at 80% 20%, var(--accent), var(--accent2));
+        color: #021015;
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        border-radius: 12px;
+        box-shadow:
+          0 10px 24px rgba(102, 255, 204, 0.25),
+          0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+        user-select: none;
+      }
+
+      .hint {
+        opacity: 0.9;
+        font-size: 12px;
+      }
+    </style>
+
+    <!-- Responsive fullscreen fit styles -->
+    <style id="fullscreen-fit-styles">
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        background: var(--bg1, #000);
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* Ensure the game canvas scales while maintaining aspect ratio */
+      canvas {
+        display: block;
+        max-width: 100vw;
+        max-height: 100vh;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@0.2.1/dist/index.min.js"></script>
+  </head>
+  <body>
+    <div id="game-wrapper">
+      <canvas id="canvas"></canvas>
+
+      <div id="top-ui" class="overlay">
+        <span id="score-pill" class="pill">Score: 0</span>
+        <span id="combo-pill" class="pill" style="margin-left: 8px">Combo: 0</span>
+        <span id="lives-pill" class="pill" style="margin-left: 8px">Lives: 3</span>
+      </div>
+
+      <div id="bottom-ui" class="overlay">
+        <div id="start-panel">
+          <div style="font-size: 28px; font-weight: 900; margin-bottom: 6px">Shadow Trick Combo</div>
+          <div
+            id="instructions"
+            style="font-size: 14px; opacity: 0.92; margin: 8px 0 12px; line-height: 1.4; text-align: center"
+          >
+            • Tap when arrows reach the glow line.<br />
+            • Keyboard: Arrow keys or WASD.<br />
+            • Hold notes: Press and hold, release at the bar end.<br />
+            • Build combo for higher scores. Misses cost lives.
+          </div>
+          <div class="btn" id="tap-to-start">Tap to Start</div>
+          <div class="hint">Perfect = best points and speed. Miss resets combo.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Config -->
+    <script id="game-config" type="application/json">
+      {
+        "colors": {
+          "backgroundTop": "#0c0f14",
+          "backgroundBottom": "#121826",
+          "lane": "#1b2236",
+          "laneGlow": "#66ffcc",
+          "note": "#9c6bff",
+          "perfect": "#66ffcc",
+          "good": "#78a6ff",
+          "miss": "#ff5e6a",
+          "text": "#e9f0ff"
+        },
+        "player": {
+          "baseSpeed": 2.4,
+          "speedIncreasePerPerfect": 0.05,
+          "maxSpeed": 6.0
+        },
+        "gameplay": {
+          "targetBPM": 96,
+          "timingWindowPerfectMs": 80,
+          "timingWindowGoodMs": 140,
+          "noteSpawnAheadMs": 1200,
+          "baseNoteSpacingBeats": 1.0,
+          "accelerationDecay": 0.996,
+          "maxMultiplier": 16
+        },
+        "ui": {
+          "showFps": false,
+          "enableParticles": true
+        },
+        "_meta": {
+          "colors.backgroundTop": { "type": "color", "label": "Background Top" },
+          "colors.backgroundBottom": { "type": "color", "label": "Background Bottom" },
+          "colors.lane": { "type": "color", "label": "Lane" },
+          "colors.laneGlow": { "type": "color", "label": "Lane Glow" },
+          "colors.note": { "type": "color", "label": "Note" },
+          "colors.perfect": { "type": "color", "label": "Perfect" },
+          "colors.good": { "type": "color", "label": "Good" },
+          "colors.miss": { "type": "color", "label": "Miss" },
+          "colors.text": { "type": "color", "label": "Text" },
+
+          "player.baseSpeed": { "type": "number", "label": "Base Scroll Speed", "min": 1, "max": 8, "step": 0.1 },
+          "player.speedIncreasePerPerfect": {
+            "type": "number",
+            "label": "Speed Increase/Perfect",
+            "min": 0,
+            "max": 0.2,
+            "step": 0.005
+          },
+          "player.maxSpeed": { "type": "number", "label": "Max Speed", "min": 2, "max": 12, "step": 0.1 },
+
+          "gameplay.targetBPM": { "type": "number", "label": "Target BPM", "min": 60, "max": 180, "step": 1 },
+          "gameplay.timingWindowPerfectMs": {
+            "type": "number",
+            "label": "Perfect Window (ms)",
+            "min": 20,
+            "max": 200,
+            "step": 5
+          },
+          "gameplay.timingWindowGoodMs": {
+            "type": "number",
+            "label": "Good Window (ms)",
+            "min": 40,
+            "max": 260,
+            "step": 5
+          },
+          "gameplay.noteSpawnAheadMs": {
+            "type": "number",
+            "label": "Spawn Ahead (ms)",
+            "min": 400,
+            "max": 2000,
+            "step": 50
+          },
+          "gameplay.baseNoteSpacingBeats": {
+            "type": "number",
+            "label": "Base Spacing (beats)",
+            "min": 0.5,
+            "max": 2,
+            "step": 0.25
+          },
+          "gameplay.accelerationDecay": {
+            "type": "number",
+            "label": "Speed Decay",
+            "min": 0.98,
+            "max": 1.0,
+            "step": 0.0005
+          },
+          "gameplay.maxMultiplier": { "type": "number", "label": "Max Multiplier", "min": 4, "max": 32, "step": 1 },
+
+          "ui.showFps": { "type": "boolean", "label": "Show FPS" },
+          "ui.enableParticles": { "type": "boolean", "label": "Enable Particles" }
+        }
+      }
+    </script>
+
+    <!-- Game Assets: audio + optional images -->
+    <script id="game-assets" type="application/json">
+      {
+        "sounds": {
+          "perfect": "https://cdn.freesound.org/previews/341/341695_6262545-lq.mp3",
+          "good": "https://cdn.freesound.org/previews/341/341642_6262545-lq.mp3",
+          "miss": "https://cdn.freesound.org/previews/246/246372_4486188-lq.mp3"
+        },
+        "background": {
+          "music": "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/7405c76d-2609-413c-87a3-96cc943755fa/Music-zFsXXlyBMrTEdeeJo726mP70W30gar.mp3?cR0n"
+        },
+        "images": {
+          "Avatar_Sitting": "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/7405c76d-2609-413c-87a3-96cc943755fa/Sitting-gjDvrj3NO7yaU1RCNZn7CJXTE3Qr2B.png?n6rr",
+          "Avatar_Up": "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/7405c76d-2609-413c-87a3-96cc943755fa/Jumping-Z68sTNWq8MUIR21KuqZJ5C9VSzY69T.png?WfXi",
+          "Avatar_Down": "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/7405c76d-2609-413c-87a3-96cc943755fa/Defense-RGEMoKRIO81BIQW2HA8KFIaQeYtkCe.png?aqUl",
+          "Avatar_Right": "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/7405c76d-2609-413c-87a3-96cc943755fa/Rail%20Slide-Bm4O8Au5j5zWfAa3hj5trYGNSd2UzS.png?yd2A",
+          "Avatar_Left": "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/7405c76d-2609-413c-87a3-96cc943755fa/Kick%20Flip%203-v5HvZeKWpaGOjY8CGEVqWyKya6sk1T.png?W3xo"
+        },
+        "_meta": {
+          "sounds.perfect": { "label": "Perfect Tap", "category": "Sound Effects" },
+          "sounds.good": { "label": "Good Tap", "category": "Sound Effects" },
+          "sounds.miss": { "label": "Miss", "category": "Sound Effects" },
+          "background.music": { "label": "Background Music", "category": "Music" }
+        }
+      }
+    </script>
+
+    <script>
+      // Globals
+      let canvas,
+        ctx,
+        W = 400,
+        H = 600;
+      let gameStarted = false;
+      let gameOver = false;
+      let isMuted = false;
+      let score = 0;
+      let bestCombo = 0;
+      let combo = 0;
+
+      let CONFIG = {};
+      let ASSETS = {};
+      const loadedSounds = {}; // {perfect, good, miss, music}
+      const trickImages = {}; // mapping trick name -> HTMLImageElement (optional)
+
+      // Rhythm/note state
+      const notes = []; // each: {time, lane:'up'|'down'|'left'|'right', kind:'tap'|'hold', durationMs:number, hit:false, judged:false, started?:boolean}
+      let baseBeatMs = 625; // default, replaced by config BPM
+      let startTime = 0;
+      let lastFrameTime = 0;
+
+      // Scroll speed control
+      let scrollSpeed = 2.4; // pixels per frame baseline
+      let speedBoost = 0; // extra boost from combo perfects that decays
+
+      // Visual effects
+      const particles = [];
+      const TRICKS = ["up", "down", "left", "right"]; // lanes
+      const LANES = ["left", "down", "up", "right"]; // draw order
+      const laneX = { left: 100, down: 175, up: 225, right: 300 };
+      const TARGET_Y = 520; // hedef çizgisi (avatar üstü)
+
+      // Avatar state
+      let avatarState = "sitting";
+      let avatarSwapUntil = 0;
+
+      // Hold state ve giriş takibi
+      const pressedLanes = new Set();
+      const activeHoldByLane = { left: null, down: null, up: null, right: null };
+
+      // Can sistemi
+      let lives = 3;
+      const LIFE_ROW_WINDOW_MS = 160; // aynı satırda birden fazla can düşmesin
+      let lastLifeLossAt = -1e9;
+
+      // Mobil algılama (tap-only mod)
+      const MOBILE =
+        "ontouchstart" in window ||
+        navigator.maxTouchPoints > 0 ||
+        /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+      function loseLifeOnce(now) {
+        if (now - lastLifeLossAt < LIFE_ROW_WINDOW_MS) return;
+        if (lives > 0) lives -= 1;
+        lastLifeLossAt = now;
+        if (lives <= 0) {
+          endGame();
+        }
+      }
+      // Bir lane'de hold varken o lane'i bloklamak için süre tut
+      const laneBlockedUntil = { left: 0, down: 0, up: 0, right: 0 };
+
+      // Zorluk ölçekleme
+      function randomLane() {
+        const idx = Math.floor(Math.random() * LANES.length);
+        return LANES[idx] === "down" ? "down" : LANES[idx] === "up" ? "up" : LANES[idx] === "left" ? "left" : "right";
+      }
+      function easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      }
+      function difficultyProgress() {
+        const start = 50000; // 50k'ya kadar hiç artış yok
+        const end = 200000; // 200k civarında maksimum zorluk
+        const p = (score - start) / (end - start);
+        return Math.max(0, Math.min(1, p));
+      }
+      function getDynamicSpacingBeats(frameTime) {
+        // Skor 50k'ya kadar taban aralık; sonrasında yumuşakça sıklaşır
+        const base = CONFIG.gameplay.baseNoteSpacingBeats;
+        const p = easeInOutCubic(difficultyProgress());
+        const tightness = 0.3; // max %30 sıklaşma
+        let spacing = base * (1 - tightness * p);
+        // 50k sonrası hafif rastgelelik ekle (tamamen rastgele his için)
+        if (p > 0) {
+          const jitter = 0.95 + Math.random() * 0.1; // ±%5
+          spacing *= jitter;
+        }
+        return spacing;
+      }
+      function getHoldChance(frameTime) {
+        // 50k'ya kadar düşük; sonra p'ye göre pürüzsüz artış
+        const p = easeInOutCubic(difficultyProgress());
+        const base = 0.05,
+          maxC = 0.22; // %5 → %22
+        return base + (maxC - base) * p;
+      }
+
+      function getMaxChordSizeByScore() {
+        // Skora bağlı üst sınır: 50k'ya kadar 1, sonra kademeli 4'e
+        const p = difficultyProgress();
+        if (p <= 0) return 1;
+        if (p < 0.2) return 2; // ~60k+
+        if (p < 0.6) return 3; // ~140k+
+        return 4; // ~200k civarı
+      }
+
+      function getMaxChordSizeByTime(timeMs) {
+        // Zaman artık sınırlamasın; skor ölçeklemesi kullanılacak
+        return 4;
+      }
+
+      function pickChordSize(maxAllowed, timeMs) {
+        // Tamamen rastgele his için skor tabanlı yumuşak ağırlıklar
+        const p = easeInOutCubic(difficultyProgress());
+        // Başta tekli baskın, p arttıkça çoğul olasılığı artar
+        // w[1..4]
+        let w = [0, 0, 0, 0, 0];
+        w[1] = 0.9 - 0.5 * p; // 0.9 → 0.4
+        w[2] = 0.09 + 0.35 * p; // 0.09 → 0.44
+        w[3] = 0.01 + 0.12 * p; // 0.01 → 0.13
+        w[4] = 0.0 + 0.03 * p; // 0.00 → 0.03
+        // maxAllowed sınırı
+        for (let s = maxAllowed + 1; s <= 4; s++) w[s] = 0;
+        let sum = w[1] + w[2] + w[3] + w[4];
+        if (sum <= 0) return Math.min(1, maxAllowed);
+        let r = Math.random() * sum;
+        for (let s = 1; s <= maxAllowed; s++) {
+          if (r < w[s]) return s;
+          r -= w[s];
+        }
+        return Math.min(maxAllowed, 1);
+      }
+
+      function initConfig() {
+        CONFIG = JSON.parse(document.getElementById("game-config").textContent);
+        // Reactive config updates
+        window.onConfigUpdate = (cfg) => {
+          CONFIG = cfg;
+          applyConfigVisuals();
+        };
+        applyConfigVisuals();
+      }
+
+      function applyConfigVisuals() {
+        document.body.style.background = `linear-gradient(180deg, ${CONFIG.colors.backgroundTop}, ${CONFIG.colors.backgroundBottom})`;
+        baseBeatMs = 60000 / CONFIG.gameplay.targetBPM;
+      }
+
+      function safeCreateAudio(url, opts = {}) {
+        // Create a safe audio handle. If unsupported or invalid, return a shim that won't throw.
+        const loop = !!opts.loop;
+        const volume = typeof opts.volume === "number" ? opts.volume : 1;
+        const noop = {
+          play: () => Promise.resolve(),
+          pause: () => {},
+          set currentTime(v) {},
+          get currentTime() {
+            return 0;
+          },
+          loop: false,
+          volume: 0,
+          _loadError: true, // treat shim as non-playable
+        };
+        if (!url || typeof url !== "string" || url.trim() === "") return noop;
+        try {
+          const testAudio = document.createElement("audio");
+          if (!testAudio || typeof testAudio.canPlayType !== "function") return noop;
+          const cleanUrl = url.split("#")[0];
+          const ext = cleanUrl.split("?")[0].split(".").pop().toLowerCase();
+          const mime = ext === "mp3" ? "audio/mpeg" : ext === "wav" ? "audio/wav" : ext === "ogg" ? "audio/ogg" : "";
+          // If we cannot determine or test support, bail out to shim to avoid runtime errors
+          if (!mime) return noop;
+          const support = testAudio.canPlayType(mime);
+          if (!support) return noop; // empty string means not supported
+
+          const audio = new Audio();
+          audio.preload = "auto";
+          audio.crossOrigin = "anonymous";
+          audio.loop = loop;
+          audio.volume = volume;
+          audio._loadError = false;
+          audio.addEventListener("error", () => {
+            audio._loadError = true;
+            console.warn("Audio failed to load, will be skipped:", url);
+          });
+          audio.src = url; // set src only after support checks
+          return audio;
+        } catch (e) {
+          console.warn("Audio init error, using noop:", e);
+          return noop;
+        }
+      }
+
+      function initAssets() {
+        ASSETS = JSON.parse(document.getElementById("game-assets").textContent);
+        // Load sounds safely
+        const s = ASSETS.sounds || {};
+        loadedSounds.perfect = safeCreateAudio(s.perfect);
+        loadedSounds.good = safeCreateAudio(s.good);
+        loadedSounds.miss = safeCreateAudio(s.miss);
+
+        // Background music
+        const musicUrl = ASSETS.background && ASSETS.background.music;
+        loadedSounds.music = safeCreateAudio(musicUrl, { loop: true, volume: 0.45 });
+
+        // Load trick images safely
+        loadTrickImages(ASSETS.images || {});
+
+        // Live asset updates (editor)
+        window.addEventListener("message", (event) => {
+          if (event.data?.type === "UPDATE_ASSETS") {
+            ASSETS = event.data.assets;
+            const s2 = ASSETS.sounds || {};
+            loadedSounds.perfect = safeCreateAudio(s2.perfect);
+            loadedSounds.good = safeCreateAudio(s2.good);
+            loadedSounds.miss = safeCreateAudio(s2.miss);
+            const music2 = ASSETS.background && ASSETS.background.music;
+            loadedSounds.music = safeCreateAudio(music2, { loop: true, volume: 0.45 });
+            loadTrickImages((ASSETS && ASSETS.images) || {});
+          }
+        });
+      }
+
+      function loadTrickImages(imagesMap) {
+        // Clear existing
+        for (const k in trickImages) delete trickImages[k];
+        const keys = Object.keys(imagesMap || {});
+        for (const key of keys) {
+          const url = imagesMap[key];
+          if (!url || typeof url !== "string") continue;
+          try {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.decoding = "async";
+            img.loading = "eager";
+            img.src = url;
+            trickImages[key] = img;
+          } catch {}
+        }
+      }
+
+      function init() {
+        canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+        // Fixed portrait canvas for consistent coordinates
+        canvas.width = W = 400;
+        canvas.height = H = 600;
+        // Klavye odaklanabilmesi için
+        try {
+          canvas.tabIndex = 0;
+        } catch {}
+
+        initConfig();
+        initAssets();
+
+        // REQUIRED: Signal game is ready
+        window.FarcadeSDK.singlePlayer.actions.ready();
+
+        setupEvents();
+        drawStartScreen();
+      }
+
+      function setupEvents() {
+        // Farcade events
+        window.FarcadeSDK.on("play_again", () => {
+          resetGame();
+          startGame();
+        });
+
+        window.FarcadeSDK.on("toggle_mute", (data) => {
+          isMuted = data.isMuted;
+          setMute(isMuted);
+        });
+
+        // Input
+        canvas.addEventListener("pointerdown", onTap, { passive: true });
+        // Tıklanınca odağı canvasa al
+        canvas.addEventListener(
+          "pointerdown",
+          () => {
+            try {
+              canvas.focus();
+            } catch {}
+          },
+          { passive: true },
+        );
+        // Klavye girdisi: Ok tuşları ve WASD ile vurma
+        document.addEventListener("keydown", (e) => {
+          if (!gameStarted) return;
+          if (e.repeat) return;
+          const k = e.key.toLowerCase();
+          // Ok tuşlarının sayfayı kaydırmasını önle
+          if (k === "arrowup" || k === "arrowdown" || k === "arrowleft" || k === "arrowright") {
+            e.preventDefault();
+          }
+          const now = performance.now();
+          let lane = null;
+          if (k === "arrowup" || k === "w") lane = "up";
+          else if (k === "arrowdown" || k === "s") lane = "down";
+          else if (k === "arrowleft" || k === "a") lane = "left";
+          else if (k === "arrowright" || k === "d") lane = "right";
+          if (!lane) return;
+          pressedLanes.add(lane);
+          // Lane'deki bir sonraki not: hold ise başlat; değilse tap yargıla
+          const next = findNextNoteInLane(lane, now);
+          if (next && !next.judged) {
+            if (next.kind === "hold") {
+              const d = Math.abs(next.time - now);
+              if (d <= CONFIG.gameplay.timingWindowGoodMs) {
+                next.started = true;
+                if (!next.startAwarded) {
+                  // Hold başlangıcında temel puan ve combo
+                  const mult = Math.min(CONFIG.gameplay.maxMultiplier, 1 + Math.floor(combo / 5));
+                  score += 50 * mult;
+                  combo += 1;
+                  bestCombo = Math.max(bestCombo, combo);
+                  playSound("good");
+                  spawnRingBurst("good");
+                  spawnText(`Hold Start +${50 * mult}`, W / 2, TARGET_Y - 60, CONFIG.colors.good);
+                  next.startAwarded = true;
+                }
+                activeHoldByLane[lane] = next;
+                swapAvatarForLane(lane);
+              } else {
+                // Yanlış zamanda hold başlatma denemesi → miss ve can
+                playSound("miss");
+                spawnRingBurst("miss");
+                combo = 0;
+                loseLifeOnce(now);
+              }
+            } else {
+              judgeByLane(lane, now);
+            }
+          } else {
+            // Yakında uygun nota yoksa yanlış zamanda basış → miss ve can
+            playSound("miss");
+            spawnRingBurst("miss");
+            combo = 0;
+            loseLifeOnce(now);
+          }
+        });
+        // Hold bitişi için keyup
+        document.addEventListener("keyup", (e) => {
+          if (!gameStarted) return;
+          const k = e.key.toLowerCase();
+          let lane = null;
+          if (k === "arrowup" || k === "w") lane = "up";
+          else if (k === "arrowdown" || k === "s") lane = "down";
+          else if (k === "arrowleft" || k === "a") lane = "left";
+          else if (k === "arrowright" || k === "d") lane = "right";
+          if (!lane) return;
+          pressedLanes.delete(lane);
+          const now = performance.now();
+          const hold = activeHoldByLane[lane];
+          if (hold && hold.started && !hold.judged) {
+            const endTime = hold.time + hold.durationMs;
+            const diff = now - endTime;
+            if (Math.abs(diff) <= CONFIG.gameplay.timingWindowPerfectMs) {
+              hold.judged = true;
+              hold.hit = true;
+              handleJudgment("perfect", hold, now);
+              // Ekstra bonus: sona kadar bastı
+              const bonus = 100;
+              score += bonus;
+              spawnText(`Hold Bonus +${bonus}`, W / 2, TARGET_Y - 80, CONFIG.colors.perfect);
+            } else if (Math.abs(diff) <= CONFIG.gameplay.timingWindowGoodMs) {
+              hold.judged = true;
+              hold.hit = true;
+              handleJudgment("good", hold, now);
+              const bonus = 60;
+              score += bonus;
+              spawnText(`Hold Bonus +${bonus}`, W / 2, TARGET_Y - 80, CONFIG.colors.good);
+            } else if (now < endTime - CONFIG.gameplay.timingWindowGoodMs) {
+              // erken bırakma
+              hold.judged = true;
+              handleJudgment("miss", hold, now);
+            } else {
+              // çok geç bırakma → good/miss
+              hold.judged = true;
+              handleJudgment("miss", hold, now);
+            }
+          }
+          activeHoldByLane[lane] = null;
+        });
+        document.getElementById("tap-to-start").addEventListener("click", () => {
+          if (!gameStarted) startGame();
+        });
+      }
+
+      function setMute(mute) {
+        const vol = mute ? 0 : 1;
+        for (const k in loadedSounds) {
+          if (loadedSounds[k] instanceof Audio) {
+            if (k === "music") loadedSounds[k].volume = mute ? 0 : 0.45;
+            else loadedSounds[k].volume = mute ? 0 : 1;
+          }
+        }
+      }
+
+      function startGame() {
+        // UI
+        document.getElementById("start-panel").style.display = "none";
+
+        // State
+        gameStarted = true;
+        gameOver = false;
+        score = 0;
+        combo = 0;
+        bestCombo = 0;
+        speedBoost = 0;
+        scrollSpeed = CONFIG.player.baseSpeed;
+        lives = 3;
+
+        // Music
+        if (loadedSounds.music && !isMuted) {
+          try {
+            const m = loadedSounds.music;
+            if (!(m instanceof Audio) || m._loadError) {
+              // skip if not a real audio element or had load error
+            } else {
+              m.currentTime = 0;
+              const p = m.play();
+              if (p && typeof p.catch === "function") p.catch(() => {});
+            }
+          } catch {}
+        }
+
+        // Build chart procedurally for endless feel
+        buildInitialNotes();
+
+        startTime = performance.now();
+        lastFrameTime = startTime;
+        requestAnimationFrame(loop);
+        // Başlangıçta odağı canvasa taşı (Safari/Chrome)
+        try {
+          canvas.focus();
+        } catch {}
+      }
+
+      function resetGame() {
+        notes.length = 0;
+        particles.length = 0;
+        score = 0;
+        combo = 0;
+        bestCombo = 0;
+        speedBoost = 0;
+        scrollSpeed = CONFIG.player.baseSpeed;
+        // Yeni durumların tam sıfırlanması
+        try {
+          pressedLanes.clear();
+        } catch {}
+        activeHoldByLane.left = null;
+        activeHoldByLane.down = null;
+        activeHoldByLane.up = null;
+        activeHoldByLane.right = null;
+        laneBlockedUntil.left = 0;
+        laneBlockedUntil.down = 0;
+        laneBlockedUntil.up = 0;
+        laneBlockedUntil.right = 0;
+        avatarState = "sitting";
+        avatarSwapUntil = 0;
+        lastLifeLossAt = -1e9;
+      }
+
+      function endGame() {
+        if (gameOver) return;
+        gameOver = true;
+        gameStarted = false;
+
+        // REQUIRED: Send final score
+        window.FarcadeSDK.singlePlayer.actions.gameOver({ score });
+
+        // Stop music smoothly
+        if (loadedSounds.music) {
+          try {
+            loadedSounds.music.pause();
+          } catch {}
+        }
+
+        // Remix/Platform end screen kullanılacak; yerel panel yok
+      }
+
+      // Chart generation: create notes spaced in beats, random tricks
+      function buildInitialNotes() {
+        const now = performance.now();
+        const firstTime = now + 600;
+        let t = firstTime;
+        const pulses = 64;
+        for (let i = 0; i < pulses; i++) {
+          generateChordAt(t);
+          const spacingBeats = getDynamicSpacingBeats(t);
+          t += spacingBeats * baseBeatMs;
+        }
+      }
+
+      function extendNotesIfNeeded(frameTime) {
+        // Ensure we always have notes scheduled at least 10 seconds ahead
+        const targetAhead = 10000; // ms
+        let lastTime = notes.length ? notes[notes.length - 1].time : frameTime + 500;
+        while (lastTime < frameTime + targetAhead) {
+          generateChordAt(lastTime);
+          const spacingBeats = getDynamicSpacingBeats(lastTime);
+          lastTime += spacingBeats * baseBeatMs;
+        }
+      }
+
+      // Bir zaman noktasında 1/2/3'lü akor üretir; tap/hold karışımı olabilir
+      function generateChordAt(timeMs) {
+        // O anda bloklu olmayan lane'ler
+        const available = LANES.filter((l) => laneBlockedUntil[l] <= timeMs);
+        if (available.length === 0) return;
+        // Zaman ve skora göre maksimum akor boyutu (zamanla yavaş yükselt)
+        const maxByScore = getMaxChordSizeByScore();
+        const maxByTime = getMaxChordSizeByTime(timeMs);
+        const maxAllowed = Math.min(maxByScore, maxByTime, available.length);
+        if (maxAllowed < 1) return;
+        const want = pickChordSize(maxAllowed, timeMs);
+        const chosen = pickRandomSubset(available, want);
+        for (const lane of chosen) {
+          const willHold = MOBILE ? false : Math.random() < getHoldChance(timeMs);
+          let durationMs = 0;
+          let kind = "tap";
+          if (willHold) {
+            // 1.5-3 beat arası hold
+            const beats = 1.5 + Math.random() * 1.5;
+            durationMs = beats * baseBeatMs;
+            kind = "hold";
+          }
+          notes.push({ time: timeMs, lane, kind, durationMs, hit: false, judged: false });
+          if (kind === "hold") {
+            // Bu lane'i hold bitene kadar blokla (+küçük tampon)
+            laneBlockedUntil[lane] = Math.max(laneBlockedUntil[lane], timeMs + durationMs + 80);
+          }
+        }
+      }
+
+      function pickRandomSubset(arr, k) {
+        const copy = arr.slice();
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = copy[i];
+          copy[i] = copy[j];
+          copy[j] = tmp;
+        }
+        return copy.slice(0, k);
+      }
+
+      function loop(now) {
+        if (!gameStarted) return;
+        const dt = Math.max(0.001, (now - lastFrameTime) / 16.6667); // frames at ~60fps
+        lastFrameTime = now;
+
+        // Decay speed boost
+        speedBoost *= CONFIG.gameplay.accelerationDecay;
+        scrollSpeed = Math.min(CONFIG.player.maxSpeed, CONFIG.player.baseSpeed + speedBoost);
+
+        extendNotesIfNeeded(now);
+        updateParticles(dt);
+        render(now);
+
+        // Fail condition: allow endless run; only end if player misses 3 in a row quickly? Simpler: no hard end, but show game over when user taps miss while not started. For now, endless: only user restarts.
+        requestAnimationFrame(loop);
+      }
+
+      function drawBackground(now) {
+        // Parallax neon city silhouettes using simple lines and glow
+        const g1 = CONFIG.colors.backgroundTop;
+        const g2 = CONFIG.colors.backgroundBottom;
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, g1);
+        grad.addColorStop(1, g2);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        // Vignette
+        const vg = ctx.createRadialGradient(W / 2, H * 0.5, W * 0.2, W / 2, H * 0.5, W * 0.9);
+        vg.addColorStop(0, "rgba(0,0,0,0)");
+        vg.addColorStop(1, "rgba(0,0,0,0.35)");
+        ctx.fillStyle = vg;
+        ctx.fillRect(0, 0, W, H);
+
+        // Lanes (vertical columns)
+        ctx.save();
+        ctx.strokeStyle = CONFIG.colors.lane;
+        ctx.lineWidth = 6;
+        for (const l of LANES) {
+          const x = laneX[l];
+          ctx.beginPath();
+          ctx.moveTo(x, 60);
+          ctx.lineTo(x, TARGET_Y + 40);
+          ctx.stroke();
+        }
+
+        // Target line
+        ctx.shadowColor = CONFIG.colors.laneGlow;
+        ctx.shadowBlur = 16;
+        ctx.strokeStyle = CONFIG.colors.laneGlow;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(60, TARGET_Y);
+        ctx.lineTo(W - 60, TARGET_Y);
+        ctx.stroke();
+        ctx.restore();
+
+        return {};
+      }
+
+      function noteScreenY(now, noteTime) {
+        // Üstten alta doğru akış
+        const timeToHit = noteTime - now; // ms
+        const pxPerMs = 0.12 * scrollSpeed;
+        // Hedef çizgisinde (TARGET_Y) zamanı now==noteTime olacak şekilde hizala
+        return TARGET_Y + -timeToHit * pxPerMs;
+      }
+
+      function render(now) {
+        drawBackground(now);
+
+        // Draw notes
+        const windowPerfect = CONFIG.gameplay.timingWindowPerfectMs;
+        const windowGood = CONFIG.gameplay.timingWindowGoodMs;
+
+        for (const n of notes) {
+          const y = noteScreenY(now, n.time);
+          const distToTarget = Math.abs(y - TARGET_Y);
+          const age = now - n.time;
+
+          // Color feedback as it nears ring
+          let col = CONFIG.colors.note;
+          if (Math.abs(age) <= windowPerfect) col = CONFIG.colors.perfect;
+          else if (Math.abs(age) <= windowGood) col = CONFIG.colors.good;
+
+          const x = laneX[n.lane];
+          if (n.kind === "hold") {
+            // Hold gövdesi: başlangıç-Y ve bitiş-Y
+            const yStart = noteScreenY(now, n.time);
+            const yEnd = noteScreenY(now, n.time + n.durationMs);
+            const top = Math.min(yStart, yEnd);
+            const height = Math.max(8, Math.abs(yEnd - yStart));
+            ctx.save();
+            ctx.fillStyle = "rgba(255,255,255,0.08)";
+            ctx.strokeStyle = col;
+            ctx.lineWidth = 3;
+            ctx.shadowColor = col;
+            ctx.shadowBlur = 10;
+            // gövde
+            ctx.beginPath();
+            ctx.roundRect(x - 10, top, 20, height, 8);
+            ctx.fill();
+            ctx.stroke();
+            // baş kısmında ok başı
+            ctx.fillStyle = col;
+            ctx.translate(x, yStart);
+            let rot = 0;
+            if (n.lane === "up") rot = 0;
+            else if (n.lane === "right") rot = Math.PI / 2;
+            else if (n.lane === "down") rot = Math.PI;
+            else if (n.lane === "left") rot = -Math.PI / 2;
+            ctx.rotate(rot);
+            const s = 14;
+            ctx.beginPath();
+            ctx.moveTo(0, -s);
+            ctx.lineTo(s, s);
+            ctx.lineTo(-s, s);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          } else {
+            // Tap ok
+            ctx.save();
+            ctx.fillStyle = col;
+            ctx.shadowColor = col;
+            ctx.shadowBlur = 16;
+            ctx.translate(x, y);
+            let rot = 0;
+            if (n.lane === "up") rot = 0;
+            else if (n.lane === "right") rot = Math.PI / 2;
+            else if (n.lane === "down") rot = Math.PI;
+            else if (n.lane === "left") rot = -Math.PI / 2;
+            ctx.rotate(rot);
+            const s = 16;
+            ctx.beginPath();
+            ctx.moveTo(0, -s);
+            ctx.lineTo(s, s);
+            ctx.lineTo(-s, s);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          }
+
+          // Auto-mark misses: if note passed beyond good window and not hit
+          if (n.kind === "tap") {
+            if (!n.judged && now - n.time > windowGood + 120) {
+              n.judged = true;
+              handleJudgment("miss", n, now);
+            }
+          } else {
+            // hold otomatik miss: başı kaçırıldıysa
+            if (!n.judged && !n.started && now - n.time > windowGood + 120) {
+              n.judged = true;
+              handleJudgment("miss", n, now);
+            }
+            // hold sonunu geçti ve başladıysa ama halen judged değilse ve tuş bırakılmadıysa otomatik başarı say
+            if (!n.judged && n.started && now > n.time + n.durationMs + 40) {
+              n.judged = true;
+              n.hit = true;
+              handleJudgment("perfect", n, now);
+              // Otomatik bonus, tuş bırakılmadan sonuna kadar basılmış kabul
+              const bonus = 80;
+              score += bonus;
+              spawnText(`Hold Bonus +${bonus}`, W / 2, TARGET_Y - 80, CONFIG.colors.perfect);
+              activeHoldByLane[n.lane] = null;
+            }
+          }
+        }
+
+        drawParticles();
+        drawAvatar(now);
+
+        // HUD update
+        document.getElementById("score-pill").textContent = `Score: ${score}`;
+        document.getElementById("combo-pill").textContent = `Combo: ${combo}`;
+        const livesEl = document.getElementById("lives-pill");
+        if (livesEl) livesEl.textContent = `Lives: ${lives}`;
+      }
+
+      function onTap(ev) {
+        handleActionTap();
+      }
+
+      function handleActionTap() {
+        if (!gameStarted) return;
+        const now = performance.now();
+        // Dokunma lane'i belirleyemediğinden en yakın notu kabul eder (mobil)
+        judgeByLane(null, now);
+      }
+
+      function judgeByLane(lane, now) {
+        const windowGood = CONFIG.gameplay.timingWindowGoodMs;
+        let best = null;
+        let bestDelta = 1e9;
+        for (const n of notes) {
+          if (n.judged) continue;
+          if (lane && n.lane !== lane) continue;
+          const d = Math.abs(n.time - now);
+          if (d < bestDelta) {
+            best = n;
+            bestDelta = d;
+          }
+        }
+        if (!best || bestDelta > windowGood) {
+          spawnRingBurst("miss");
+          playSound("miss");
+          combo = 0;
+          loseLifeOnce(now);
+          return;
+        }
+        if (best.kind === "hold") {
+          if (MOBILE) {
+            // Mobilde hold'u tap gibi yargıla
+            best.judged = true;
+            const delta = now - best.time;
+            const absd = Math.abs(delta);
+            let verdict = "good";
+            if (absd <= CONFIG.gameplay.timingWindowPerfectMs) verdict = "perfect";
+            else if (absd <= CONFIG.gameplay.timingWindowGoodMs) verdict = "good";
+            else verdict = "miss";
+            if (verdict !== "miss") best.hit = true;
+            handleJudgment(verdict, best, now);
+            return;
+          }
+          if (!best.started && Math.abs(best.time - now) <= windowGood) {
+            best.started = true;
+            activeHoldByLane[lane || best.lane] = best;
+            if (lane) swapAvatarForLane(lane);
+          }
+        } else {
+          best.judged = true;
+          const delta = now - best.time;
+          const absd = Math.abs(delta);
+          let verdict = "good";
+          if (absd <= CONFIG.gameplay.timingWindowPerfectMs) verdict = "perfect";
+          else if (absd <= CONFIG.gameplay.timingWindowGoodMs) verdict = "good";
+          else verdict = "miss";
+          if (verdict !== "miss") best.hit = true;
+          handleJudgment(verdict, best, now);
+          if (lane) swapAvatarForLane(lane);
+        }
+      }
+
+      // Belirli bir lane için zamana en yakın yargılanmamış notu bulur
+      function findNextNoteInLane(lane, now) {
+        let candidate = null;
+        let bestDelta = 1e9;
+        for (const n of notes) {
+          if (n.judged) continue;
+          if (n.lane !== lane) continue;
+          const d = Math.abs(n.time - now);
+          if (d < bestDelta) {
+            candidate = n;
+            bestDelta = d;
+          }
+        }
+        return candidate;
+      }
+
+      function handleJudgment(verdict, note, now) {
+        const ring = { x: W / 2, y: TARGET_Y };
+        if (verdict === "perfect") {
+          combo += 1;
+          bestCombo = Math.max(bestCombo, combo);
+          const mult = Math.min(CONFIG.gameplay.maxMultiplier, 1 + Math.floor(combo / 5));
+          score += 100 * mult;
+          speedBoost += CONFIG.player.speedIncreasePerPerfect;
+          playSound("perfect");
+          spawnRingBurst("perfect");
+          spawnText(`Perfect! +${100 * mult}`, ring.x, ring.y - 52, CONFIG.colors.perfect);
+        } else if (verdict === "good") {
+          combo += 1;
+          bestCombo = Math.max(bestCombo, combo);
+          const mult = Math.min(CONFIG.gameplay.maxMultiplier, 1 + Math.floor(combo / 5));
+          score += 50 * mult;
+          playSound("good");
+          spawnRingBurst("good");
+          spawnText(`Good +${50 * mult}`, ring.x, ring.y - 52, CONFIG.colors.good);
+        } else {
+          // miss
+          if (combo > 0) spawnText(`Combo Lost (${combo})`, ring.x, ring.y - 52, CONFIG.colors.miss);
+          combo = 0;
+          playSound("miss");
+          spawnRingBurst("miss");
+          // Can azalt (satır başına tek can)
+          loseLifeOnce(now);
+        }
+      }
+
+      function playSound(name) {
+        if (isMuted) return;
+        const a = loadedSounds[name];
+        if (a && typeof a.play === "function") {
+          try {
+            if (a instanceof Audio && a._loadError) return;
+            if (a instanceof Audio) a.currentTime = 0;
+            const p = a.play();
+            if (p && typeof p.catch === "function") p.catch(() => {});
+          } catch {}
+        }
+      }
+
+      // Particles
+      function spawnRingBurst(type) {
+        const color =
+          type === "perfect" ? CONFIG.colors.perfect : type === "good" ? CONFIG.colors.good : CONFIG.colors.miss;
+        const x = W / 2,
+          y = TARGET_Y;
+        const count = type === "perfect" ? 28 : type === "good" ? 18 : 10;
+        for (let i = 0; i < count; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const spd = (type === "perfect" ? 3.2 : type === "good" ? 2.4 : 1.6) * (0.6 + Math.random() * 0.8);
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd - 0.5,
+            life: 40 + Math.random() * 20,
+            age: 0,
+            color,
+            size: type === "perfect" ? 3.5 : 3,
+          });
+        }
+      }
+
+      function spawnText(text, x, y, color) {
+        particles.push({ text, x, y, vy: -0.6, age: 0, life: 50, color, kind: "text" });
+      }
+
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.age += dt;
+          if (p.text) {
+            p.y += p.vy * 2.2 * dt;
+            if (p.age > p.life / 10) p.vy *= 0.98;
+            if (p.age > p.life) particles.splice(i, 1);
+          } else {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vy += 0.02 * dt;
+            if (p.age > p.life) particles.splice(i, 1);
+          }
+        }
+      }
+
+      function drawParticles() {
+        for (const p of particles) {
+          if (p.text) {
+            const a = 1 - p.age / p.life;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, a);
+            ctx.fillStyle = p.color;
+            ctx.font = "bold 16px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(p.text, p.x, p.y);
+            ctx.restore();
+          } else {
+            const a = 1 - p.age / p.life;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, a);
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+      }
+
+      // Avatar çizimi ve durum yönetimi
+      function swapAvatarForLane(lane) {
+        avatarSwapUntil = performance.now() + 180; // ms
+        if (lane === "up") avatarState = "up";
+        else if (lane === "down") avatarState = "down";
+        else if (lane === "left") avatarState = "left";
+        else if (lane === "right") avatarState = "right";
+      }
+
+      function drawAvatar(now) {
+        if (avatarSwapUntil && now > avatarSwapUntil) {
+          avatarState = "sitting";
+          avatarSwapUntil = 0;
+        }
+        let key = "Avatar_Sitting";
+        if (avatarState === "up") key = "Avatar_Up";
+        else if (avatarState === "down") key = "Avatar_Down";
+        else if (avatarState === "left") key = "Avatar_Left";
+        else if (avatarState === "right") key = "Avatar_Right";
+        const img = trickImages[key];
+        const size = 92;
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.save();
+          ctx.imageSmoothingEnabled = true;
+          ctx.shadowColor = "rgba(0,0,0,0.6)";
+          ctx.shadowBlur = 10;
+          ctx.drawImage(img, Math.round(W / 2 - size / 2), Math.round(TARGET_Y - 6), size, size);
+          ctx.restore();
+        }
+      }
+
+      function drawStartScreen() {
+        const ctx2 = ctx;
+        ctx2.clearRect(0, 0, W, H);
+        // background glow animation
+        const grad = ctx2.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, CONFIG.colors.backgroundTop);
+        grad.addColorStop(1, CONFIG.colors.backgroundBottom);
+        ctx2.fillStyle = grad;
+        ctx2.fillRect(0, 0, W, H);
+
+        // Title flare
+        ctx2.save();
+        ctx2.shadowColor = CONFIG.colors.laneGlow;
+        ctx2.shadowBlur = 28;
+        ctx2.fillStyle = "rgba(255,255,255,0.06)";
+        ctx2.beginPath();
+        ctx2.arc(W / 2, H * 0.38, 70, 0, Math.PI * 2);
+        ctx2.fill();
+        ctx2.restore();
+      }
+
+      // Optional: End run after long idle without notes (not used). Keeping endless loop; player can restart via UI or platform.
+
+      // Start
+      window.addEventListener("load", init);
+    </script>
+  </body>
+</html>
