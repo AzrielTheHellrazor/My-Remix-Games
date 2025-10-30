@@ -380,19 +380,19 @@
       // Visual effects
       const particles = [];
       const TRICKS = ["up", "down", "left", "right"]; // lanes
-       const LANES = ["left", "down", "up", "right"]; // draw order
-       const laneX = { left: 100, down: 175, up: 225, right: 300 };
-       function setEqualLanePositions(){
-         // Eşit aralıklı dikey çizgiler: 4 lane'i [margin..W-margin] arasında eşit dağıt
-         const margin = 60;
-         const span = (W - margin * 2);
-         const positions = [0,1,2,3].map(i => Math.round(margin + (span * i / 3)));
-         // Sıralama: left, down, up, right
-         laneX.left = positions[0];
-         laneX.down = positions[1];
-         laneX.up = positions[2];
-         laneX.right = positions[3];
-       }
+      const LANES = ["left", "down", "up", "right"]; // draw order
+      const laneX = { left: 100, down: 175, up: 225, right: 300 };
+      function setEqualLanePositions() {
+        // Eşit aralıklı dikey çizgiler: 4 lane'i [margin..W-margin] arasında eşit dağıt
+        const margin = 60;
+        const span = W - margin * 2;
+        const positions = [0, 1, 2, 3].map((i) => Math.round(margin + (span * i) / 3));
+        // Sıralama: left, down, up, right
+        laneX.left = positions[0];
+        laneX.down = positions[1];
+        laneX.up = positions[2];
+        laneX.right = positions[3];
+      }
       const TARGET_Y = 520; // hedef çizgisi (avatar üstü)
 
       // Avatar state
@@ -475,8 +475,8 @@
           applyConfigVisuals();
         };
         applyConfigVisuals();
-       // Şerit pozisyonlarını eşitle
-       setEqualLanePositions();
+        // Şerit pozisyonlarını eşitle
+        setEqualLanePositions();
       }
 
       function applyConfigVisuals() {
@@ -588,8 +588,8 @@
           canvas.tabIndex = 0;
         } catch {}
 
-         // Şerit pozisyonlarını eşitle (ilk yüklemede)
-         setEqualLanePositions();
+        // Şerit pozisyonlarını eşitle (ilk yüklemede)
+        setEqualLanePositions();
 
         initConfig();
         initAssets();
@@ -723,6 +723,73 @@
           }
           activeHoldByLane[lane] = null;
         });
+        // Mobilde dokunma ile basılı tutma desteği
+        let touchStartTime = 0;
+        let touchStartHold = null;
+        canvas.addEventListener("pointerdown", (ev) => {
+          if (!gameStarted) return;
+          const now = performance.now();
+          touchStartTime = now;
+          // En yakın hold notunu bul ve başlat
+          let bestHold = null;
+          let bestDelta = 1e9;
+          for (const n of notes) {
+            if (n.kind !== "hold" || n.judged || n.started) continue;
+            const d = Math.abs(n.time - now);
+            if (d < bestDelta && d <= CONFIG.gameplay.timingWindowGoodMs) {
+              bestHold = n;
+              bestDelta = d;
+            }
+          }
+          if (bestHold) {
+            bestHold.started = true;
+            activeHoldByLane[bestHold.lane] = bestHold;
+            swapAvatarForLane(bestHold.lane);
+            if (!bestHold.startAwarded) {
+              const mult = Math.min(CONFIG.gameplay.maxMultiplier, 1 + Math.floor(combo / 5));
+              score += 50 * mult;
+              combo += 1;
+              bestCombo = Math.max(bestCombo, combo);
+              playSound("good");
+              spawnRingBurst("good");
+              spawnText(`Hold Start +${50 * mult}`, W / 2, TARGET_Y - 60, CONFIG.colors.good);
+              bestHold.startAwarded = true;
+            }
+          }
+          touchStartHold = bestHold;
+        }, { passive: true });
+        canvas.addEventListener("pointerup", (ev) => {
+          if (!gameStarted) return;
+          const now = performance.now();
+          // Dokunma ile başlatılan hold'u bitir
+          if (touchStartHold && touchStartHold.started && !touchStartHold.judged) {
+            const endTime = touchStartHold.time + touchStartHold.durationMs;
+            const diff = now - endTime;
+            if (Math.abs(diff) <= CONFIG.gameplay.timingWindowPerfectMs) {
+              touchStartHold.judged = true;
+              touchStartHold.hit = true;
+              handleJudgment("perfect", touchStartHold, now);
+              const bonus = 100;
+              score += bonus;
+              spawnText(`Hold Bonus +${bonus}`, W / 2, TARGET_Y - 80, CONFIG.colors.perfect);
+            } else if (Math.abs(diff) <= CONFIG.gameplay.timingWindowGoodMs) {
+              touchStartHold.judged = true;
+              touchStartHold.hit = true;
+              handleJudgment("good", touchStartHold, now);
+              const bonus = 60;
+              score += bonus;
+              spawnText(`Hold Bonus +${bonus}`, W / 2, TARGET_Y - 80, CONFIG.colors.good);
+            } else if (now < endTime - CONFIG.gameplay.timingWindowGoodMs) {
+              touchStartHold.judged = true;
+              handleJudgment("miss", touchStartHold, now);
+            } else {
+              touchStartHold.judged = true;
+              handleJudgment("miss", touchStartHold, now);
+            }
+            activeHoldByLane[touchStartHold.lane] = null;
+            touchStartHold = null;
+          }
+        }, { passive: true });
         document.getElementById("tap-to-start").addEventListener("click", () => {
           if (!gameStarted) startGame();
         });
@@ -824,7 +891,7 @@
       // Chart generation: create notes spaced in beats, random tricks
       function buildInitialNotes() {
         const now = performance.now();
-        const firstTime = now + 600;
+        const firstTime = now + 2000; // 2 saniye gecikme: okların üstten görünmesi için
         let t = firstTime;
         const pulses = 64;
         for (let i = 0; i < pulses; i++) {
@@ -855,45 +922,50 @@
         const maxByTime = getMaxChordSizeByTime(timeMs);
         const maxAllowed = Math.min(maxByScore, maxByTime, available.length);
         if (maxAllowed < 1) return;
-         let want = pickChordSize(maxAllowed, timeMs);
-         // Aktif hold sayısına göre yeni spawn sayısını sınırla: aktif + yeni ≤ 2
-         const activeHolds = countActiveHoldsAt(timeMs);
-         const allowedNew = Math.max(0, 2 - activeHolds);
-         want = Math.min(want, allowedNew);
-         if (want <= 0) return;
-         const chosen = pickRandomSubset(available, want);
-         if (chosen.length === 1) {
-           const lane = chosen[0];
-           const willHold = MOBILE ? false : Math.random() < getHoldChance(timeMs);
-           let durationMs = 0; let kind = 'tap';
-           if (willHold) { const beats = 1.5 + Math.random()*1.5; durationMs = beats*baseBeatMs; kind = 'hold'; }
-           notes.push({ time: timeMs, lane, kind, durationMs, hit: false, judged: false });
-           if (kind === 'hold') laneBlockedUntil[lane] = Math.max(laneBlockedUntil[lane], timeMs + durationMs + 80);
-         } else if (chosen.length === 2) {
-           const lanes = chosen.slice();
-           // İki notun türlerini belirle: hold aktifse en az biri hold olmalı
-           let kinds = ['tap','tap'];
-           if (!MOBILE) {
-             kinds[0] = (Math.random() < getHoldChance(timeMs)) ? 'hold' : 'tap';
-             kinds[1] = (Math.random() < getHoldChance(timeMs)) ? 'hold' : 'tap';
-             if (activeHolds > 0 && kinds[0] === 'tap' && kinds[1] === 'tap') {
-               // En az birini hold'a çevir
-               const idx = Math.random() < 0.5 ? 0 : 1;
-               kinds[idx] = 'hold';
-             }
-           }
-           // Mobilde iki not varsa ikisi de tap kalır (hold üretmiyoruz)
-           for (let i=0;i<2;i++) {
-             const lane = lanes[i];
-             let kind = MOBILE ? 'tap' : kinds[i];
-             let durationMs = 0;
-             if (kind === 'hold') {
-               const beats = 1.5 + Math.random()*1.5; durationMs = beats*baseBeatMs;
-             }
-             notes.push({ time: timeMs, lane, kind, durationMs, hit: false, judged: false });
-             if (kind === 'hold') laneBlockedUntil[lane] = Math.max(laneBlockedUntil[lane], timeMs + durationMs + 80);
-           }
-         }
+        let want = pickChordSize(maxAllowed, timeMs);
+        // Toplam aktif nota sayısını kontrol et: aktif + yeni ≤ 2
+        const activeNotes = countActiveNotesAt(timeMs);
+        const allowedNew = Math.max(0, 2 - activeNotes);
+        want = Math.min(want, allowedNew);
+        if (want <= 0) return;
+        const chosen = pickRandomSubset(available, want);
+        if (chosen.length === 1) {
+          const lane = chosen[0];
+          const willHold = Math.random() < getHoldChance(timeMs);
+          let durationMs = 0;
+          let kind = "tap";
+          if (willHold) {
+            const beats = 1.5 + Math.random() * 1.5;
+            durationMs = beats * baseBeatMs;
+            kind = "hold";
+          }
+          notes.push({ time: timeMs, lane, kind, durationMs, hit: false, judged: false });
+          if (kind === "hold") laneBlockedUntil[lane] = Math.max(laneBlockedUntil[lane], timeMs + durationMs + 80);
+        } else if (chosen.length === 2) {
+          const lanes = chosen.slice();
+          // İki notun türlerini belirle: hold aktifse en az biri hold olmalı
+          let kinds = ["tap", "tap"];
+          kinds[0] = Math.random() < getHoldChance(timeMs) ? "hold" : "tap";
+          kinds[1] = Math.random() < getHoldChance(timeMs) ? "hold" : "tap";
+          const activeHolds = countActiveHoldsAt(timeMs);
+          if (activeHolds > 0 && kinds[0] === "tap" && kinds[1] === "tap") {
+            // En az birini hold'a çevir
+            const idx = Math.random() < 0.5 ? 0 : 1;
+            kinds[idx] = "hold";
+          }
+          // İki notu üret
+          for (let i = 0; i < 2; i++) {
+            const lane = lanes[i];
+            let kind = kinds[i];
+            let durationMs = 0;
+            if (kind === "hold") {
+              const beats = 1.5 + Math.random() * 1.5;
+              durationMs = beats * baseBeatMs;
+            }
+            notes.push({ time: timeMs, lane, kind, durationMs, hit: false, judged: false });
+            if (kind === "hold") laneBlockedUntil[lane] = Math.max(laneBlockedUntil[lane], timeMs + durationMs + 80);
+          }
+        }
       }
 
       function pickRandomSubset(arr, k) {
@@ -907,20 +979,36 @@
         return copy.slice(0, k);
       }
 
-       function countActiveHoldsAt(timeMs) {
-         let count = 0;
-         for (const n of notes) {
-           if (n.kind !== 'hold') continue;
-           const start = n.time;
-           const end = n.time + n.durationMs;
-           if (timeMs >= start && timeMs < end) count++;
-         }
-         if (activeHoldByLane.left && !activeHoldByLane.left.judged) count++;
-         if (activeHoldByLane.down && !activeHoldByLane.down.judged) count++;
-         if (activeHoldByLane.up && !activeHoldByLane.up.judged) count++;
-         if (activeHoldByLane.right && !activeHoldByLane.right.judged) count++;
-         return count;
-       }
+      function countActiveHoldsAt(timeMs) {
+        let count = 0;
+        // Notes dizisindeki aktif hold'ları say (başlamış ve bitmemiş)
+        for (const n of notes) {
+          if (n.kind !== "hold") continue;
+          if (n.judged) continue; // Zaten yargılanmış, sayma
+          const start = n.time;
+          const end = n.time + n.durationMs;
+          if (timeMs >= start && timeMs < end) count++;
+        }
+        return count;
+      }
+      function countActiveNotesAt(timeMs) {
+        // Aynı anda aktif olan tüm notaları say (hold + tap)
+        let count = 0;
+        const window = CONFIG.gameplay.timingWindowGoodMs;
+        for (const n of notes) {
+          if (n.judged) continue;
+          // Hold için: zaman aralığı içinde mi?
+          if (n.kind === "hold") {
+            const start = n.time;
+            const end = n.time + n.durationMs;
+            if (timeMs >= start && timeMs < end) count++;
+          } else {
+            // Tap için: zaman penceresi içinde mi?
+            if (Math.abs(timeMs - n.time) <= window) count++;
+          }
+        }
+        return count;
+      }
 
       function loop(now) {
         if (!gameStarted) return;
@@ -1109,6 +1197,22 @@
         if (!gameStarted) return;
         const now = performance.now();
         // Dokunma lane'i belirleyemediğinden en yakın notu kabul eder (mobil)
+        // Önce en yakın notu bul, sonra onun lane'ini kullanarak avatar swap yap
+        const windowGood = CONFIG.gameplay.timingWindowGoodMs;
+        let best = null;
+        let bestDelta = 1e9;
+        for (const n of notes) {
+          if (n.judged) continue;
+          const d = Math.abs(n.time - now);
+          if (d < bestDelta) {
+            best = n;
+            bestDelta = d;
+          }
+        }
+        if (best && bestDelta <= windowGood && best.lane) {
+          // Mobilde en yakın notun lane'ini kullanarak avatar swap yap
+          swapAvatarForLane(best.lane);
+        }
         judgeByLane(null, now);
       }
 
@@ -1133,23 +1237,21 @@
           return;
         }
         if (best.kind === "hold") {
-          if (MOBILE) {
-            // Mobilde hold'u tap gibi yargıla
-            best.judged = true;
-            const delta = now - best.time;
-            const absd = Math.abs(delta);
-            let verdict = "good";
-            if (absd <= CONFIG.gameplay.timingWindowPerfectMs) verdict = "perfect";
-            else if (absd <= CONFIG.gameplay.timingWindowGoodMs) verdict = "good";
-            else verdict = "miss";
-            if (verdict !== "miss") best.hit = true;
-            handleJudgment(verdict, best, now);
-            return;
-          }
           if (!best.started && Math.abs(best.time - now) <= windowGood) {
             best.started = true;
             activeHoldByLane[lane || best.lane] = best;
             if (lane) swapAvatarForLane(lane);
+            if (!best.startAwarded) {
+              // Hold başlangıcında temel puan ve combo
+              const mult = Math.min(CONFIG.gameplay.maxMultiplier, 1 + Math.floor(combo / 5));
+              score += 50 * mult;
+              combo += 1;
+              bestCombo = Math.max(bestCombo, combo);
+              playSound("good");
+              spawnRingBurst("good");
+              spawnText(`Hold Start +${50 * mult}`, W / 2, TARGET_Y - 60, CONFIG.colors.good);
+              best.startAwarded = true;
+            }
           }
         } else {
           best.judged = true;
@@ -1351,12 +1453,19 @@
       // Start
       window.addEventListener("load", init);
     </script>
-  
+
     <!-- Remove blue focus ring/border around the game -->
     <style id="no-focus-ring">
-      *:focus { outline: none !important; }
-      canvas, canvas:focus { outline: none !important; }
-      :focus { -webkit-tap-highlight-color: transparent; }
+      *:focus {
+        outline: none !important;
+      }
+      canvas,
+      canvas:focus {
+        outline: none !important;
+      }
+      :focus {
+        -webkit-tap-highlight-color: transparent;
+      }
     </style>
-</body>
+  </body>
 </html>
