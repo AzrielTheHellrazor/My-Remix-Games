@@ -380,8 +380,19 @@
       // Visual effects
       const particles = [];
       const TRICKS = ["up", "down", "left", "right"]; // lanes
-      const LANES = ["left", "down", "up", "right"]; // draw order
-      const laneX = { left: 100, down: 175, up: 225, right: 300 };
+       const LANES = ["left", "down", "up", "right"]; // draw order
+       const laneX = { left: 100, down: 175, up: 225, right: 300 };
+       function setEqualLanePositions(){
+         // Eşit aralıklı dikey çizgiler: 4 lane'i [margin..W-margin] arasında eşit dağıt
+         const margin = 60;
+         const span = (W - margin * 2);
+         const positions = [0,1,2,3].map(i => Math.round(margin + (span * i / 3)));
+         // Sıralama: left, down, up, right
+         laneX.left = positions[0];
+         laneX.down = positions[1];
+         laneX.up = positions[2];
+         laneX.right = positions[3];
+       }
       const TARGET_Y = 520; // hedef çizgisi (avatar üstü)
 
       // Avatar state
@@ -429,60 +440,31 @@
         return Math.max(0, Math.min(1, p));
       }
       function getDynamicSpacingBeats(frameTime) {
-        // Skor 50k'ya kadar taban aralık; sonrasında yumuşakça sıklaşır
+        // Zamanla yavaş hızlanma: 0-180sn arası ~%20 sıklaşma (alt sınır 0.8x)
+        const elapsed = Math.max(0, (frameTime - startTime) / 1000);
         const base = CONFIG.gameplay.baseNoteSpacingBeats;
-        const p = easeInOutCubic(difficultyProgress());
-        const tightness = 0.3; // max %30 sıklaşma
-        let spacing = base * (1 - tightness * p);
-        // 50k sonrası hafif rastgelelik ekle (tamamen rastgele his için)
-        if (p > 0) {
-          const jitter = 0.95 + Math.random() * 0.1; // ±%5
-          spacing *= jitter;
-        }
-        return spacing;
+        const factor = Math.max(0.8, 1 - (elapsed / 180) * 0.2);
+        return base * factor;
       }
       function getHoldChance(frameTime) {
-        // 50k'ya kadar düşük; sonra p'ye göre pürüzsüz artış
-        const p = easeInOutCubic(difficultyProgress());
-        const base = 0.05,
-          maxC = 0.22; // %5 → %22
-        return base + (maxC - base) * p;
+        // Tamamen rastgele: sabit olasılık
+        return 0.12; // %12 hold
       }
 
       function getMaxChordSizeByScore() {
-        // Skora bağlı üst sınır: 50k'ya kadar 1, sonra kademeli 4'e
-        const p = difficultyProgress();
-        if (p <= 0) return 1;
-        if (p < 0.2) return 2; // ~60k+
-        if (p < 0.6) return 3; // ~140k+
-        return 4; // ~200k civarı
+        // İstek gereği asla 3 veya 4 gelmesin → üst sınır 2
+        return 2;
       }
 
       function getMaxChordSizeByTime(timeMs) {
-        // Zaman artık sınırlamasın; skor ölçeklemesi kullanılacak
-        return 4;
+        // Ek güvenlik: zaman bazlı da en fazla 2
+        return 2;
       }
 
       function pickChordSize(maxAllowed, timeMs) {
-        // Tamamen rastgele his için skor tabanlı yumuşak ağırlıklar
-        const p = easeInOutCubic(difficultyProgress());
-        // Başta tekli baskın, p arttıkça çoğul olasılığı artar
-        // w[1..4]
-        let w = [0, 0, 0, 0, 0];
-        w[1] = 0.9 - 0.5 * p; // 0.9 → 0.4
-        w[2] = 0.09 + 0.35 * p; // 0.09 → 0.44
-        w[3] = 0.01 + 0.12 * p; // 0.01 → 0.13
-        w[4] = 0.0 + 0.03 * p; // 0.00 → 0.03
-        // maxAllowed sınırı
-        for (let s = maxAllowed + 1; s <= 4; s++) w[s] = 0;
-        let sum = w[1] + w[2] + w[3] + w[4];
-        if (sum <= 0) return Math.min(1, maxAllowed);
-        let r = Math.random() * sum;
-        for (let s = 1; s <= maxAllowed; s++) {
-          if (r < w[s]) return s;
-          r -= w[s];
-        }
-        return Math.min(maxAllowed, 1);
+        // Tamamen rastgele: sabit ağırlıklar
+        if (maxAllowed < 2) return 1;
+        return Math.random() < 0.25 ? 2 : 1; // %25 iki not, %75 tek not
       }
 
       function initConfig() {
@@ -493,6 +475,8 @@
           applyConfigVisuals();
         };
         applyConfigVisuals();
+       // Şerit pozisyonlarını eşitle
+       setEqualLanePositions();
       }
 
       function applyConfigVisuals() {
@@ -603,6 +587,9 @@
         try {
           canvas.tabIndex = 0;
         } catch {}
+
+         // Şerit pozisyonlarını eşitle (ilk yüklemede)
+         setEqualLanePositions();
 
         initConfig();
         initAssets();
@@ -868,24 +855,45 @@
         const maxByTime = getMaxChordSizeByTime(timeMs);
         const maxAllowed = Math.min(maxByScore, maxByTime, available.length);
         if (maxAllowed < 1) return;
-        const want = pickChordSize(maxAllowed, timeMs);
-        const chosen = pickRandomSubset(available, want);
-        for (const lane of chosen) {
-          const willHold = MOBILE ? false : Math.random() < getHoldChance(timeMs);
-          let durationMs = 0;
-          let kind = "tap";
-          if (willHold) {
-            // 1.5-3 beat arası hold
-            const beats = 1.5 + Math.random() * 1.5;
-            durationMs = beats * baseBeatMs;
-            kind = "hold";
-          }
-          notes.push({ time: timeMs, lane, kind, durationMs, hit: false, judged: false });
-          if (kind === "hold") {
-            // Bu lane'i hold bitene kadar blokla (+küçük tampon)
-            laneBlockedUntil[lane] = Math.max(laneBlockedUntil[lane], timeMs + durationMs + 80);
-          }
-        }
+         let want = pickChordSize(maxAllowed, timeMs);
+         // Aktif hold sayısına göre yeni spawn sayısını sınırla: aktif + yeni ≤ 2
+         const activeHolds = countActiveHoldsAt(timeMs);
+         const allowedNew = Math.max(0, 2 - activeHolds);
+         want = Math.min(want, allowedNew);
+         if (want <= 0) return;
+         const chosen = pickRandomSubset(available, want);
+         if (chosen.length === 1) {
+           const lane = chosen[0];
+           const willHold = MOBILE ? false : Math.random() < getHoldChance(timeMs);
+           let durationMs = 0; let kind = 'tap';
+           if (willHold) { const beats = 1.5 + Math.random()*1.5; durationMs = beats*baseBeatMs; kind = 'hold'; }
+           notes.push({ time: timeMs, lane, kind, durationMs, hit: false, judged: false });
+           if (kind === 'hold') laneBlockedUntil[lane] = Math.max(laneBlockedUntil[lane], timeMs + durationMs + 80);
+         } else if (chosen.length === 2) {
+           const lanes = chosen.slice();
+           // İki notun türlerini belirle: hold aktifse en az biri hold olmalı
+           let kinds = ['tap','tap'];
+           if (!MOBILE) {
+             kinds[0] = (Math.random() < getHoldChance(timeMs)) ? 'hold' : 'tap';
+             kinds[1] = (Math.random() < getHoldChance(timeMs)) ? 'hold' : 'tap';
+             if (activeHolds > 0 && kinds[0] === 'tap' && kinds[1] === 'tap') {
+               // En az birini hold'a çevir
+               const idx = Math.random() < 0.5 ? 0 : 1;
+               kinds[idx] = 'hold';
+             }
+           }
+           // Mobilde iki not varsa ikisi de tap kalır (hold üretmiyoruz)
+           for (let i=0;i<2;i++) {
+             const lane = lanes[i];
+             let kind = MOBILE ? 'tap' : kinds[i];
+             let durationMs = 0;
+             if (kind === 'hold') {
+               const beats = 1.5 + Math.random()*1.5; durationMs = beats*baseBeatMs;
+             }
+             notes.push({ time: timeMs, lane, kind, durationMs, hit: false, judged: false });
+             if (kind === 'hold') laneBlockedUntil[lane] = Math.max(laneBlockedUntil[lane], timeMs + durationMs + 80);
+           }
+         }
       }
 
       function pickRandomSubset(arr, k) {
@@ -898,6 +906,21 @@
         }
         return copy.slice(0, k);
       }
+
+       function countActiveHoldsAt(timeMs) {
+         let count = 0;
+         for (const n of notes) {
+           if (n.kind !== 'hold') continue;
+           const start = n.time;
+           const end = n.time + n.durationMs;
+           if (timeMs >= start && timeMs < end) count++;
+         }
+         if (activeHoldByLane.left && !activeHoldByLane.left.judged) count++;
+         if (activeHoldByLane.down && !activeHoldByLane.down.judged) count++;
+         if (activeHoldByLane.up && !activeHoldByLane.up.judged) count++;
+         if (activeHoldByLane.right && !activeHoldByLane.right.judged) count++;
+         return count;
+       }
 
       function loop(now) {
         if (!gameStarted) return;
@@ -951,8 +974,8 @@
         ctx.strokeStyle = CONFIG.colors.laneGlow;
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(60, TARGET_Y);
-        ctx.lineTo(W - 60, TARGET_Y);
+        ctx.moveTo(0, TARGET_Y);
+        ctx.lineTo(W, TARGET_Y);
         ctx.stroke();
         ctx.restore();
 
@@ -1328,5 +1351,12 @@
       // Start
       window.addEventListener("load", init);
     </script>
-  </body>
+  
+    <!-- Remove blue focus ring/border around the game -->
+    <style id="no-focus-ring">
+      *:focus { outline: none !important; }
+      canvas, canvas:focus { outline: none !important; }
+      :focus { -webkit-tap-highlight-color: transparent; }
+    </style>
+</body>
 </html>
