@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Reflex Keeper 2D</title>
     <style>
         body {
@@ -11,6 +11,34 @@
             overflow: hidden;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #000;
+        }
+
+        /* Outer Container - 9:16 aspect ratio, fills screen */
+        #outer-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: url('https://remix.gg/blob/8cb8ad2d-5588-4aa9-8744-786b9809294e/Gemini_Generated_Image_955yyb955yyb955y-NyBjiIIcpD0bxGTu9Y3NCWeJv3pOy1.webp?P0pG');
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Game Container - 5:9 aspect ratio frame */
+        #game-container {
+            position: relative;
+            width: min(90vw, 50vh);
+            /* 5:9 width - based on height */
+            height: min(162vw, 90vh);
+            /* 5:9 height - based on width */
+            max-width: 800px;
+            max-height: 1440px;
+            overflow: hidden;
+            border-radius: 15px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
 
         /* LAYERS */
@@ -74,11 +102,11 @@
 
         /* Gloves (CSS) */
         .glove-container {
-            width: 100px;
-            height: 100px;
+            width: min(60px, 15vw);
+            height: min(60px, 15vw);
             z-index: 50;
-            margin-left: -50px;
-            margin-top: -50px;
+            margin-left: min(-30px, -7.5vw);
+            margin-top: min(-30px, -7.5vw);
             pointer-events: none;
         }
 
@@ -168,10 +196,10 @@
 
         /* Ball Visuals - Simple white ball */
         .ball-visual {
-            width: 100px;
-            height: 100px;
-            margin-left: -50px;
-            margin-top: -50px;
+            width: min(50px, 12vw);
+            height: min(50px, 12vw);
+            margin-left: min(-25px, -6vw);
+            margin-top: min(-25px, -6vw);
             border-radius: 50%;
             background: radial-gradient(circle at 35% 35%, #ffffff 0%, #eeeeee 40%, #cccccc 100%);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
@@ -194,12 +222,12 @@
 
         /* UI ELEMENTS */
         .hud {
-            padding: 20px;
+            padding: clamp(10px, 3vw, 20px);
             display: flex;
             justify-content: space-between;
             color: #fff;
             text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
-            font-size: 24px;
+            font-size: clamp(14px, 4vw, 24px);
             font-weight: bold;
         }
 
@@ -235,28 +263,32 @@
         }
 
         h1 {
-            font-size: 64px;
+            font-size: clamp(32px, 8vw, 64px);
             margin: 0 0 20px 0;
             text-transform: uppercase;
-            letter-spacing: 5px;
+            letter-spacing: clamp(2px, 1vw, 5px);
             background: linear-gradient(to right, #4ade80, #3b82f6);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
+            text-align: center;
+            padding: 0 10px;
+            word-wrap: break-word;
         }
 
         p {
-            font-size: 24px;
-            margin-bottom: 40px;
+            font-size: clamp(14px, 4vw, 24px);
+            margin-bottom: 30px;
             text-align: center;
-            max-width: 600px;
+            max-width: 90%;
             line-height: 1.5;
             color: #e5e5e5;
+            padding: 0 15px;
         }
 
         button {
-            padding: 15px 40px;
-            font-size: 24px;
+            padding: clamp(10px, 3vw, 15px) clamp(25px, 8vw, 40px);
+            font-size: clamp(16px, 4vw, 24px);
             font-weight: bold;
             color: white;
             background: linear-gradient(45deg, #2563eb, #7c3aed);
@@ -266,6 +298,7 @@
             box-shadow: 0 4px 15px rgba(37, 99, 235, 0.5);
             transition: transform 0.2s, box-shadow 0.2s;
             pointer-events: auto;
+            touch-action: manipulation;
         }
 
         button:hover {
@@ -299,105 +332,150 @@
 </head>
 
 <body>
-    <!-- BACKGROUND -->
-    <div id="background-layer">
-        <img src="stadium.png" id="bg-img" alt="Stadium Background">
-    </div>
+    <div id="outer-container">
+        <div id="game-container">
+            <!-- BACKGROUND -->
+            <div id="background-layer">
+                <img src="https://remix.gg/blob/8cb8ad2d-5588-4aa9-8744-786b9809294e/stadium%209%3A16-Vl1tld9I8jqWrRq0Dm2vGnqEGEkdcb.webp?jXRK"
+                    id="bg-img" alt="Stadium Background">
+            </div>
 
-    <!-- GAMEPLAY LAYER -->
-    <div id="game-layer">
-        <!-- Gloves will be injected here -->
-        <!-- Balls will be injected here -->
-    </div>
+            <!-- GAMEPLAY LAYER -->
+            <div id="game-layer">
+                <!-- Gloves will be injected here -->
+                <!-- Balls will be injected here -->
+            </div>
 
-    <!-- UI LAYER -->
-    <div id="ui-layer">
-        <div class="hud">
-            <span id="score-display">SAVES: 0</span>
-            <span id="lives-display">LIVES: 3</span>
-        </div>
-        <div id="level-indicator">LEVEL UP! SPEED INCREASED</div>
-    </div>
+            <!-- UI LAYER -->
+            <div id="ui-layer">
+                <div class="hud">
+                    <span id="score-display">SAVES: 0</span>
+                    <span id="lives-display">LIVES: 3</span>
+                </div>
 
-    <!-- OVERLAY -->
-    <div id="overlay">
-        <h1>Reflex Keeper</h1>
-        <p id="message">Move your mouse to control the gloves.<br>Block the shots to survive.<br>It gets faster.</p>
-        <button id="start-btn">START GAME</button>
-    </div>
+            </div>
 
-    <script>
-        // --- CONSTANTS ---
-        // Gloves and Ball are now CSS only
+            <!-- OVERLAY -->
+            <div id="overlay">
+                <h1>Reflex Keeper</h1>
+                <p id="message">Move your mouse to control the gloves.<br>Block the shots to survive.<br>It gets faster.
+                </p>
+                <button id="start-btn">START GAME</button>
+            </div>
 
-        // Game tuning
-        const HIT_ZONE_RADIUS = 50; // Distance in pixels for save
-        const PERSP_START_SCALE = 0.1;
-        const PERSP_END_SCALE = 1.0;
-        const SPAWN_Y = 0.4; // % of screen height where ball coming from (horizon)
+            <script>
+                // --- CONSTANTS ---
+                // Gloves and Ball are now CSS only
 
-        // Physics constants
-        const GRAVITY = 0.3;       // Gravity acceleration
-        const BOUNCE_DAMPING = 0.6; // Energy loss on bounce
-        const FRICTION = 0.99;      // Air friction
+                // Game tuning
+                const HIT_ZONE_RADIUS = 50; // Distance in pixels for save
+                const PERSP_START_SCALE = 0.1;
+                const PERSP_END_SCALE = 1.0;
+                const SPAWN_Y = 0.45; // % of screen height where ball coming from (horizon - further away)
 
-        // --- STATE ---
-        let isPlaying = false;
-        let score = 0;
-        let lives = 3;
-        let speedMultiplier = 1.0;
+                // Physics constants
+                const GRAVITY = 0.2;       // Gravity acceleration
+                const BOUNCE_DAMPING = 0.8; // Energy loss on bounce
+                const FRICTION = 0.99;      // Air friction
+                const MIN_CATCH_SCALE = 0.5; // Ball must be at least this big to be caught
+                const FADE_OUT_TIME = 1500;  // Time in ms for saved ball to disappear
 
-        let mouseX = window.innerWidth / 2;
-        let mouseY = window.innerHeight / 2;
+                // --- STATE ---
+                let isPlaying = false;
+                let score = 0;
+                let lives = 3;
+                let speedMultiplier = 1.0;
 
-        let balls = []; // Array of active ball objects
-        let lastShotTime = 0;
-        let shotInterval = 1500;
+                let mouseX = window.innerWidth / 2;
+                let mouseY = window.innerHeight / 2;
 
-        // Elements
-        const gameLayer = document.getElementById('game-layer');
-        const overlay = document.getElementById('overlay');
-        const startBtn = document.getElementById('start-btn');
-        const scoreEl = document.getElementById('score-display');
-        const livesEl = document.getElementById('lives-display');
-        const levelEl = document.getElementById('level-indicator');
+                let balls = []; // Array of active ball objects
+                let lastShotTime = 0;
+                let shotInterval = 1500;
 
-        // Gloves
-        let leftGlove, rightGlove;
+                // Elements
+                const gameLayer = document.getElementById('game-layer');
+                const overlay = document.getElementById('overlay');
+                const startBtn = document.getElementById('start-btn');
+                const scoreEl = document.getElementById('score-display');
+                const livesEl = document.getElementById('lives-display');
+                // Level indicator removed
 
-        // --- INITIALIZATION ---
-        function init() {
-            createGloves();
+                // Gloves
+                let leftGlove, rightGlove;
 
-            // Input
-            document.addEventListener('mousemove', (e) => {
-                mouseX = e.clientX;
-                mouseY = e.clientY;
-            });
-            startBtn.addEventListener('click', startGame);
+                // Mouse velocity tracking for glove tilt
+                let prevMouseX = window.innerWidth / 2;
+                let mouseVelX = 0;
+                let gloveTilt = 0; // Current tilt angle
 
-            // Loop
-            requestAnimationFrame(gameLoop);
-        }
+                // --- INITIALIZATION ---
+                const gameContainer = document.getElementById('game-container');
 
-        function createGloves() {
-            // Left Glove
-            leftGlove = createGO('glove-container', null);
-            leftGlove.innerHTML = createGloveHTML();
-            // User requested check: Flip left glove visually via CSS scaleX(-1)
-            leftGlove.style.transform = "scaleX(-1)";
+                function init() {
+                    createGloves();
 
-            // Right Glove
-            rightGlove = createGO('glove-container', null);
-            rightGlove.innerHTML = createGloveHTML();
+                    // Input - track mouse relative to game container
+                    gameContainer.addEventListener('mousemove', (e) => {
+                        handlePointerMove(e.clientX, e.clientY);
+                    });
 
-            // Append
-            gameLayer.appendChild(leftGlove);
-            gameLayer.appendChild(rightGlove);
-        }
+                    // Touch support for mobile
+                    gameContainer.addEventListener('touchmove', (e) => {
+                        e.preventDefault(); // Prevent scrolling
+                        if (e.touches.length > 0) {
+                            handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+                        }
+                    }, { passive: false });
 
-        function createGloveHTML() {
-            return `
+                    gameContainer.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        if (e.touches.length > 0) {
+                            handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+                        }
+                    }, { passive: false });
+
+                    startBtn.addEventListener('click', startGame);
+                    startBtn.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        startGame();
+                    });
+
+                    // Loop
+                    requestAnimationFrame(gameLoop);
+                }
+
+                function handlePointerMove(clientX, clientY) {
+                    const rect = gameContainer.getBoundingClientRect();
+                    const relativeX = clientX - rect.left;
+                    const relativeY = clientY - rect.top;
+
+                    // Track velocity for tilt
+                    mouseVelX = relativeX - prevMouseX;
+                    prevMouseX = relativeX;
+
+                    mouseX = relativeX;
+                    mouseY = relativeY;
+                }
+
+                function createGloves() {
+                    // Left Glove
+                    leftGlove = createGO('glove-container', null);
+                    leftGlove.innerHTML = createGloveHTML();
+                    // User requested check: Flip left glove visually via CSS scaleX(-1)
+                    leftGlove.style.transform = "scaleX(-1)";
+
+                    // Right Glove
+                    rightGlove = createGO('glove-container', null);
+                    rightGlove.innerHTML = createGloveHTML();
+
+                    // Append
+                    gameLayer.appendChild(leftGlove);
+                    gameLayer.appendChild(rightGlove);
+                }
+
+                function createGloveHTML() {
+                    return `
                 <div class="glove-shape">
                     <div class="glove-finger finger-1"></div>
                     <div class="glove-finger finger-2"></div>
@@ -408,209 +486,245 @@
                     <div class="glove-strap"></div>
                 </div>
             `;
-        }
-
-        function createGO(type, src) {
-            const el = document.createElement('div');
-            el.className = `game-object ${type}`;
-            if (src) {
-                el.innerHTML = `<div class="iframe-container"><img src="${src}"></div>`;
-            }
-            return el;
-        }
-
-        function startGame() {
-            isPlaying = true;
-            score = 0;
-            lives = 3;
-            speedMultiplier = 1.0;
-            balls.forEach(b => b.el.remove());
-            balls = [];
-            updateUI();
-            overlay.classList.add('hidden');
-        }
-
-        function spawnBall() {
-            const ballEl = createGO('ball-container', null);
-            ballEl.innerHTML = '<div class="ball-visual"></div>';
-            gameLayer.appendChild(ballEl);
-
-            // Ball starts from horizon (center top area)
-            const startX = window.innerWidth / 2 + (Math.random() - 0.5) * 200;
-            const startY = window.innerHeight * SPAWN_Y;
-
-            // Target somewhere in goal area
-            const targetX = (window.innerWidth / 2) + (Math.random() - 0.5) * (window.innerWidth * 0.5);
-            const targetY = window.innerHeight * 0.8;
-
-            // Calculate initial velocity towards target
-            const speed = 8 * speedMultiplier;
-            const angle = Math.atan2(targetY - startY, targetX - startX);
-
-            const ballData = {
-                el: ballEl,
-                x: startX,
-                y: startY,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                scale: PERSP_START_SCALE,
-                bounced: false,  // Track if ball has been saved/bounced
-                dead: false      // Mark for removal
-            };
-            balls.push(ballData);
-        }
-
-        // --- GAME LOOP ---
-        function gameLoop(time) {
-            requestAnimationFrame(gameLoop);
-
-            // Update Glove Positions
-            const gloveOffset = 60;
-            updateElementPos(rightGlove, mouseX + gloveOffset, mouseY);
-            updateElementPos(leftGlove, mouseX - gloveOffset, mouseY);
-
-            if (!isPlaying) return;
-
-            // Spawning
-            if (time - lastShotTime > shotInterval) {
-                spawnBall();
-                lastShotTime = time;
-            }
-
-            // Update Balls with physics
-            for (let i = balls.length - 1; i >= 0; i--) {
-                let b = balls[i];
-
-                if (b.dead) {
-                    b.el.remove();
-                    balls.splice(i, 1);
-                    continue;
                 }
 
-                // Apply gravity
-                b.vy += GRAVITY;
+                function createGO(type, src) {
+                    const el = document.createElement('div');
+                    el.className = `game-object ${type}`;
+                    if (src) {
+                        el.innerHTML = `<div class="iframe-container"><img src="${src}"></div>`;
+                    }
+                    return el;
+                }
 
-                // Apply friction
-                b.vx *= FRICTION;
-                b.vy *= FRICTION;
+                function startGame() {
+                    isPlaying = true;
+                    score = 0;
+                    lives = 3;
+                    speedMultiplier = 1.0;
+                    balls.forEach(b => b.el.remove());
+                    balls = [];
+                    updateUI();
+                    overlay.classList.add('hidden');
+                }
 
-                // Update position
-                b.x += b.vx;
-                b.y += b.vy;
+                function spawnBall() {
+                    const ballEl = createGO('ball-container', null);
+                    ballEl.innerHTML = '<div class="ball-visual"></div>';
+                    gameLayer.appendChild(ballEl);
 
-                // Update scale based on Y position (depth simulation)
-                const depthProgress = (b.y - window.innerHeight * SPAWN_Y) / (window.innerHeight * 0.6);
-                b.scale = lerp(PERSP_START_SCALE, PERSP_END_SCALE, Math.min(1, Math.max(0, depthProgress)));
+                    // Get container dimensions
+                    const containerW = gameContainer.clientWidth;
+                    const containerH = gameContainer.clientHeight;
 
-                // Render
-                b.el.style.transform = `translate(${b.x}px, ${b.y}px) scale(${b.scale})`;
+                    // Ball starts from horizon (center top area) with some variation
+                    const startX = containerW / 2 + (Math.random() - 0.5) * (containerW * 0.3);
+                    const startY = containerH * SPAWN_Y;
 
-                // Check collision with gloves (only if not already bounced)
-                if (!b.bounced) {
-                    const gloveHit = checkGloveCollision(b.x, b.y);
-                    if (gloveHit) {
-                        // Bounce the ball!
-                        handleBounce(b, gloveHit);
-                        b.bounced = true;
-                        score++;
-                        updateUI();
+                    // Target distribution: full uniform spread - no center bias
+                    // Random value from -1 to 1
+                    const spreadX = (Math.random() - 0.5) * 2;
 
-                        if (score % 5 === 0) {
-                            speedMultiplier += 0.2;
-                            showLevelUp();
+                    // Full spread on X (75% of container width from center each side)
+                    const targetX = (containerW / 2) + spreadX * (containerW * 0.4);
+                    // Y target from upper area to bottom
+                    const targetY = containerH * 0.3 + Math.random() * (containerH * 0.6);
+
+                    // Calculate initial velocity towards target - SLOWER speed
+                    const speed = 5 * speedMultiplier; // Reduced from 8 to 5
+                    const angle = Math.atan2(targetY - startY, targetX - startX);
+
+                    const ballData = {
+                        el: ballEl,
+                        x: startX,
+                        y: startY,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        scale: PERSP_START_SCALE,
+                        bounced: false,  // Track if ball has been saved/bounced
+                        dead: false      // Mark for removal
+                    };
+                    balls.push(ballData);
+                }
+
+                // --- GAME LOOP ---
+                function gameLoop(time) {
+                    requestAnimationFrame(gameLoop);
+
+                    // Calculate glove tilt based on mouse horizontal velocity
+                    // Smooth interpolation towards target tilt
+                    const targetTilt = Math.max(-25, Math.min(25, mouseVelX * 2)); // Max ±25 degrees
+                    gloveTilt += (targetTilt - gloveTilt) * 0.15; // Smooth interpolation
+
+                    // Decay mouse velocity over time
+                    mouseVelX *= 0.9;
+
+                    // Update Glove Positions with tilt
+                    const gloveOffset = 35;
+                    updateElementPos(rightGlove, mouseX + gloveOffset, mouseY, gloveTilt);
+                    updateElementPos(leftGlove, mouseX - gloveOffset, mouseY, -gloveTilt); // Opposite tilt for left
+
+                    if (!isPlaying) return;
+
+                    // Spawning
+                    if (time - lastShotTime > shotInterval) {
+                        spawnBall();
+                        lastShotTime = time;
+                    }
+
+                    // Update Balls with physics
+                    for (let i = balls.length - 1; i >= 0; i--) {
+                        let b = balls[i];
+
+                        if (b.dead) {
+                            b.el.remove();
+                            balls.splice(i, 1);
+                            continue;
+                        }
+
+                        // Check if saved ball should fade out
+                        if (b.bounced && b.fadeStartTime) {
+                            const elapsed = time - b.fadeStartTime;
+                            if (elapsed >= FADE_OUT_TIME) {
+                                b.dead = true;
+                                continue;
+                            }
+                            // Gradually shrink and fade
+                            const fadeProgress = elapsed / FADE_OUT_TIME;
+                            b.el.style.opacity = 1 - fadeProgress;
+                            b.scale = Math.max(0.1, b.scale * 0.98); // Slowly shrink
+                        }
+
+                        // Apply gravity (less for bounced balls going away)
+                        if (b.bounced) {
+                            b.vy += GRAVITY * 0.2; // Reduced gravity for saved balls
+                        } else {
+                            b.vy += GRAVITY;
+                        }
+
+                        // Apply friction
+                        b.vx *= FRICTION;
+                        b.vy *= FRICTION;
+
+                        // Update position
+                        b.x += b.vx;
+                        b.y += b.vy;
+
+                        // Update scale based on Y position (depth simulation) - only for incoming balls
+                        if (!b.bounced) {
+                            const containerH = gameContainer.clientHeight;
+                            const depthProgress = (b.y - containerH * SPAWN_Y) / (containerH * 0.5);
+                            b.scale = lerp(PERSP_START_SCALE, PERSP_END_SCALE, Math.min(1, Math.max(0, depthProgress)));
+                        }
+
+                        // Render
+                        b.el.style.transform = `translate(${b.x}px, ${b.y}px) scale(${b.scale})`;
+
+                        // Check collision with gloves (only if not already bounced AND ball is big enough)
+                        if (!b.bounced && b.scale >= MIN_CATCH_SCALE) {
+                            const gloveHit = checkGloveCollision(b.x, b.y);
+                            if (gloveHit) {
+                                // Bounce the ball!
+                                handleBounce(b, gloveHit);
+                                b.bounced = true;
+                                b.fadeStartTime = time; // Start fade timer
+                                score++;
+                                updateUI();
+
+                                if (score % 5 === 0) {
+                                    speedMultiplier += 0.2;
+                                    showLevelUp();
+                                }
+                            }
+                        }
+
+                        // Check if ball is out of bounds (only count as goal if not bounced)
+                        const containerW = gameContainer.clientWidth;
+                        const containerH = gameContainer.clientHeight;
+                        if (b.y > containerH + 100 || b.x < -100 || b.x > containerW + 100) {
+                            if (!b.bounced) {
+                                // Ball went past without being saved = goal
+                                lives--;
+                                updateUI();
+                                if (lives <= 0) {
+                                    gameOver();
+                                }
+                            }
+                            b.dead = true;
                         }
                     }
                 }
 
-                // Check if ball is out of bounds
-                if (b.y > window.innerHeight + 100 || b.x < -100 || b.x > window.innerWidth + 100) {
-                    if (!b.bounced) {
-                        // Ball went past without being saved = goal
-                        lives--;
-                        updateUI();
-                        if (lives <= 0) {
-                            gameOver();
-                        }
+                function checkGloveCollision(ballX, ballY) {
+                    // Right Glove Center
+                    const rGx = mouseX + 35;
+                    const rGy = mouseY;
+                    // Left Glove Center
+                    const lGx = mouseX - 35;
+                    const lGy = mouseY;
+
+                    const distR = Math.hypot(ballX - rGx, ballY - rGy);
+                    const distL = Math.hypot(ballX - lGx, ballY - lGy);
+
+                    if (distR < HIT_ZONE_RADIUS) {
+                        return { x: rGx, y: rGy, side: 'right' };
                     }
-                    b.dead = true;
+                    if (distL < HIT_ZONE_RADIUS) {
+                        return { x: lGx, y: lGy, side: 'left' };
+                    }
+                    return null;
                 }
-            }
-        }
 
-        function checkGloveCollision(ballX, ballY) {
-            // Right Glove Center
-            const rGx = mouseX + 60;
-            const rGy = mouseY;
-            // Left Glove Center
-            const lGx = mouseX - 60;
-            const lGy = mouseY;
+                function handleBounce(ball, glove) {
+                    // Ball should bounce AWAY - reverse the incoming direction
+                    // Reverse both X and Y velocity (ball goes back where it came from)
+                    const bounceForce = 12;
 
-            const distR = Math.hypot(ballX - rGx, ballY - rGy);
-            const distL = Math.hypot(ballX - lGx, ballY - lGy);
+                    // Reverse the ball's direction and add upward force
+                    ball.vx = -ball.vx * 0.8 + (glove.side === 'right' ? 8 : -8);
+                    ball.vy = -Math.abs(ball.vy) * 0.5 - bounceForce; // Always go upward (away)
 
-            if (distR < HIT_ZONE_RADIUS) {
-                return { x: rGx, y: rGy, side: 'right' };
-            }
-            if (distL < HIT_ZONE_RADIUS) {
-                return { x: lGx, y: lGy, side: 'left' };
-            }
-            return null;
-        }
+                    // Apply damping
+                    ball.vx *= BOUNCE_DAMPING;
+                    ball.vy *= BOUNCE_DAMPING;
+                }
 
-        function handleBounce(ball, glove) {
-            // Calculate bounce direction (away from glove center)
-            const dx = ball.x - glove.x;
-            const dy = ball.y - glove.y;
-            const dist = Math.hypot(dx, dy) || 1;
-
-            // Normalize and apply bounce force
-            const bounceForce = 15;
-            ball.vx = (dx / dist) * bounceForce + (Math.random() - 0.5) * 5;
-            ball.vy = (dy / dist) * bounceForce - 8; // Add upward component
-
-            // Apply damping
-            ball.vx *= BOUNCE_DAMPING;
-            ball.vy *= BOUNCE_DAMPING;
-        }
-
-        function updateElementPos(el, x, y) {
-            // Keep CSS transform logic separate for gloves since they don't use the ball scale logic
-            // We need to preserve the scaleX(-1) for left glove if present
-            let transform = `translate(${x}px, ${y}px)`;
-            if (el === leftGlove) transform += " scaleX(-1)";
-            el.style.transform = transform;
-        }
+                function updateElementPos(el, x, y, tilt) {
+                    // Apply position and tilt rotation
+                    let transform = `translate(${x}px, ${y}px) rotate(${tilt}deg)`;
+                    if (el === leftGlove) transform += " scaleX(-1)";
+                    el.style.transform = transform;
+                }
 
 
 
-        function gameOver() {
-            isPlaying = false;
-            overlay.classList.remove('hidden');
-            document.getElementById('message').innerHTML = `GAME OVER<br>Score: ${score}<br>Reflex Keeper Custom`;
-            startBtn.innerText = "TRY AGAIN";
-        }
+                function gameOver() {
+                    isPlaying = false;
+                    overlay.classList.remove('hidden');
+                    document.getElementById('message').innerHTML = `GAME OVER<br>Score: ${score}<br>Reflex Keeper Custom`;
+                    startBtn.innerText = "TRY AGAIN";
+                }
 
-        function updateUI() {
-            scoreEl.innerText = `SAVES: ${score}`;
-            livesEl.innerText = `LIVES: ${lives}`;
-        }
+                function updateUI() {
+                    scoreEl.innerText = `SAVES: ${score}`;
+                    livesEl.innerText = `LIVES: ${lives}`;
+                }
 
-        function showLevelUp() {
-            levelEl.classList.add('show-level');
-            setTimeout(() => {
-                levelEl.classList.remove('show-level');
-            }, 2000);
-        }
+                function showLevelUp() {
+                    // Level indicator removed
+                }
 
-        // Utils
-        function lerp(start, end, t) {
-            return start * (1 - t) + end * t;
-        }
+                // Utils
+                function lerp(start, end, t) {
+                    return start * (1 - t) + end * t;
+                }
 
-        // Start
-        init();
+                // Start
+                init();
 
-    </script>
+            </script>
+        </div> <!-- Close game-container -->
+    </div> <!-- Close outer-container -->
 </body>
 
 </html>
