@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Reflex Keeper 2D</title>
     <style>
@@ -206,6 +207,49 @@
             animation: spin 0.6s linear infinite;
         }
 
+        /* New Ball Assets - CSS Gradients */
+        .ball-visual.blue-ball {
+            background: radial-gradient(circle at 35% 35%, #00ffff 0%, #00bcd4 40%, #0097a7 100%);
+        }
+
+        .ball-visual.yellow-ball {
+            background: radial-gradient(circle at 35% 35%, #ffff00 0%, #fbc02d 40%, #f57f17 100%);
+        }
+
+        /* New Glove Assets - CSS Colors */
+        /* Blue Gloves */
+        .glove-container.blue-gloves .glove-palm,
+        .glove-container.blue-gloves .glove-finger,
+        .glove-container.blue-gloves .glove-thumb {
+            background-color: #2196f3;
+            border-color: #1976d2;
+        }
+
+        /* Yellow Gloves */
+        .glove-container.yellow-gloves .glove-palm,
+        .glove-container.yellow-gloves .glove-finger,
+        .glove-container.yellow-gloves .glove-thumb {
+            background-color: #ffeb3b;
+            border-color: #fbc02d;
+        }
+
+        /* Black Gloves */
+        .glove-container.black-gloves .glove-palm,
+        .glove-container.black-gloves .glove-finger,
+        .glove-container.black-gloves .glove-thumb {
+            background-color: #333333;
+            border-color: #000000;
+        }
+
+        /* Realistic background override class (if applied to body or outer container) */
+        .realistic-background #outer-container {
+            background-image: url('https://remix.gg/blob/8cb8ad2d-5588-4aa9-8744-786b9809294e/Realistic%20background-EURwa0CyIkdGheYQsSDWp5TvMd6pg3.webp?EUUI') !important;
+            background-size: 110% 110% !important;
+            /* Zoom in to crop edges */
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+        }
+
         @keyframes spin {
             from {
                 transform: rotate(0deg);
@@ -263,8 +307,9 @@
         }
 
         h1 {
-            font-size: clamp(32px, 8vw, 64px);
-            margin: 0 0 20px 0;
+            font-size: clamp(24px, 6vw, 40px);
+            /* Reduced significantly */
+            margin: 0 0 10px 0;
             text-transform: uppercase;
             letter-spacing: clamp(2px, 1vw, 5px);
             background: linear-gradient(to right, #4ade80, #3b82f6);
@@ -272,8 +317,10 @@
             background-clip: text;
             -webkit-text-fill-color: transparent;
             text-align: center;
-            padding: 0 10px;
+            padding: 0 5px;
             word-wrap: break-word;
+            flex-shrink: 0;
+            /* Prevent title from disappearing */
         }
 
         p {
@@ -287,8 +334,8 @@
         }
 
         button {
-            padding: clamp(10px, 3vw, 15px) clamp(25px, 8vw, 40px);
-            font-size: clamp(16px, 4vw, 24px);
+            padding: clamp(8px, 3vw, 12px) clamp(20px, 8vw, 30px);
+            font-size: clamp(16px, 4vw, 20px);
             font-weight: bold;
             color: white;
             background: linear-gradient(45deg, #2563eb, #7c3aed);
@@ -299,6 +346,7 @@
             transition: transform 0.2s, box-shadow 0.2s;
             pointer-events: auto;
             touch-action: manipulation;
+            margin-top: 5px;
         }
 
         button:hover {
@@ -318,6 +366,111 @@
             transition: opacity 0.5s;
         }
 
+        /* Customization UI */
+        #customization-panel {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            width: 95%;
+            max-width: 360px;
+            overflow-y: auto;
+            /* Scroll if absolutely necessary on tiny screens */
+            max-height: 60vh;
+        }
+
+        .select-group {
+            margin-bottom: 10px;
+        }
+
+        .select-label {
+            font-size: 14px;
+            color: #ccc;
+            margin-bottom: 5px;
+            text-align: center;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .options-container {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .option-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid transparent;
+            padding: 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+            font-size: 10px;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 60px;
+            /* Reduced width */
+        }
+
+        .option-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .option-btn.selected {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: #60a5fa;
+            font-weight: bold;
+        }
+
+        .preview-box {
+            width: 35px;
+            /* Reduced visual size */
+            height: 35px;
+            border-radius: 4px;
+            margin-bottom: 3px;
+            position: relative;
+            overflow: hidden;
+            background: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Bg Previews */
+        .preview-bg {
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Glove Previews - Scale down game assets */
+        .preview-glove {
+            position: relative !important;
+            /* Override game absolute */
+            margin: 0 !important;
+            transform: scale(0.5);
+            transform-origin: center;
+            top: 0;
+            left: 0;
+        }
+
+        /* Ball Previews */
+        .preview-ball {
+            position: relative !important;
+            margin: 0 !important;
+            /* Reset responsive sizing for preview */
+            width: 30px !important;
+            height: 30px !important;
+            /* Scale needs to be 1 if we set size manually, or keep distinct visual style */
+            transform: scale(0.8) !important;
+            margin-left: 0 !important;
+            margin-top: 0 !important;
+        }
+
         .show-level {
             opacity: 1 !important;
         }
@@ -332,6 +485,18 @@
 </head>
 
 <body>
+    <!-- Audio -->
+    <audio id="bg-music" loop>
+        <source
+            src="https://remix.gg/blob/8cb8ad2d-5588-4aa9-8744-786b9809294e/bg-music-1-pvAVd0Arp5LMrjXcQM5o2pl6gxqGjy.mp3?7LGI"
+            type="audio/mpeg">
+    </audio>
+    <audio id="kick-sound">
+        <source
+            src="https://remix.gg/blob/8cb8ad2d-5588-4aa9-8744-786b9809294e/kick-Ii6fIRyslPcpAZyUS2X4xYcVaiccJN.wav?HcfQ"
+            type="audio/wav">
+    </audio>
+
     <div id="outer-container">
         <div id="game-container">
             <!-- BACKGROUND -->
@@ -358,8 +523,145 @@
             <!-- OVERLAY -->
             <div id="overlay">
                 <h1>Reflex Keeper</h1>
-                <p id="message">Move your mouse to control the gloves.<br>Block the shots to survive.<br>It gets faster.
-                </p>
+
+                <div id="customization-panel">
+                    <!-- Background Selection -->
+                    <div class="select-group">
+                        <div class="select-label">Select Background</div>
+                        <div class="options-container">
+                            <div class="option-btn selected" data-type="bg" data-value="default">
+                                <div class="preview-box">
+                                    <div class="preview-bg"
+                                        style="background-image: url('https://remix.gg/blob/8cb8ad2d-5588-4aa9-8744-786b9809294e/Gemini_Generated_Image_955yyb955yyb955y-NyBjiIIcpD0bxGTu9Y3NCWeJv3pOy1.webp?P0pG')">
+                                    </div>
+                                </div>
+                                <span>Stadium</span>
+                            </div>
+                            <div class="option-btn" data-type="bg" data-value="realistic">
+                                <div class="preview-box">
+                                    <div class="preview-bg"
+                                        style="background-image: url('https://remix.gg/blob/8cb8ad2d-5588-4aa9-8744-786b9809294e/Realistic%20background-EURwa0CyIkdGheYQsSDWp5TvMd6pg3.webp?EUUI')">
+                                    </div>
+                                </div>
+                                <span>Realistic</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Glove Selection -->
+                    <div class="select-group">
+                        <div class="select-label">Select Gloves</div>
+                        <div class="options-container">
+                            <!-- Helper for inner HTML of gloves -->
+                            <script>
+                                const gloveInner = `
+                                    <div class="glove-shape">
+                                        <div class="glove-finger finger-1"></div>
+                                        <div class="glove-finger finger-2"></div>
+                                        <div class="glove-finger finger-3"></div>
+                                        <div class="glove-finger finger-4"></div>
+                                        <div class="glove-thumb"></div>
+                                        <div class="glove-palm"></div>
+                                        <div class="glove-strap"></div>
+                                    </div>`;
+                            </script>
+
+                            <div class="option-btn selected" data-type="glove" data-value="default">
+                                <div class="preview-box">
+                                    <div class="glove-container preview-glove"> <!-- Default Orange -->
+                                        <div class="glove-shape">
+                                            <div class="glove-finger finger-1"></div>
+                                            <div class="glove-finger finger-2"></div>
+                                            <div class="glove-finger finger-3"></div>
+                                            <div class="glove-finger finger-4"></div>
+                                            <div class="glove-thumb"></div>
+                                            <div class="glove-palm"></div>
+                                            <div class="glove-strap"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span>Classic</span>
+                            </div>
+
+                            <div class="option-btn" data-type="glove" data-value="blue">
+                                <div class="preview-box">
+                                    <div class="glove-container preview-glove blue-gloves">
+                                        <div class="glove-shape">
+                                            <div class="glove-finger finger-1"></div>
+                                            <div class="glove-finger finger-2"></div>
+                                            <div class="glove-finger finger-3"></div>
+                                            <div class="glove-finger finger-4"></div>
+                                            <div class="glove-thumb"></div>
+                                            <div class="glove-palm"></div>
+                                            <div class="glove-strap"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span>Blue</span>
+                            </div>
+
+                            <div class="option-btn" data-type="glove" data-value="yellow">
+                                <div class="preview-box">
+                                    <div class="glove-container preview-glove yellow-gloves">
+                                        <div class="glove-shape">
+                                            <div class="glove-finger finger-1"></div>
+                                            <div class="glove-finger finger-2"></div>
+                                            <div class="glove-finger finger-3"></div>
+                                            <div class="glove-finger finger-4"></div>
+                                            <div class="glove-thumb"></div>
+                                            <div class="glove-palm"></div>
+                                            <div class="glove-strap"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span>Yellow</span>
+                            </div>
+
+                            <div class="option-btn" data-type="glove" data-value="black">
+                                <div class="preview-box">
+                                    <div class="glove-container preview-glove black-gloves">
+                                        <div class="glove-shape">
+                                            <div class="glove-finger finger-1"></div>
+                                            <div class="glove-finger finger-2"></div>
+                                            <div class="glove-finger finger-3"></div>
+                                            <div class="glove-finger finger-4"></div>
+                                            <div class="glove-thumb"></div>
+                                            <div class="glove-palm"></div>
+                                            <div class="glove-strap"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span>Black</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ball Selection -->
+                    <div class="select-group">
+                        <div class="select-label">Select Ball</div>
+                        <div class="options-container">
+                            <div class="option-btn selected" data-type="ball" data-value="default">
+                                <div class="preview-box">
+                                    <div class="ball-visual preview-ball"></div>
+                                </div>
+                                <span>Classic</span>
+                            </div>
+                            <div class="option-btn" data-type="ball" data-value="blue">
+                                <div class="preview-box">
+                                    <div class="ball-visual blue-ball preview-ball"></div>
+                                </div>
+                                <span>Blue</span>
+                            </div>
+                            <div class="option-btn" data-type="ball" data-value="yellow">
+                                <div class="preview-box">
+                                    <div class="ball-visual yellow-ball preview-ball"></div>
+                                </div>
+                                <span>Yellow</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <button id="start-btn">START GAME</button>
             </div>
 
@@ -399,6 +701,8 @@
                 const startBtn = document.getElementById('start-btn');
                 const scoreEl = document.getElementById('score-display');
                 const livesEl = document.getElementById('lives-display');
+                const bgMusic = document.getElementById('bg-music');
+                const kickSound = document.getElementById('kick-sound');
                 // Level indicator removed
 
                 // Gloves
@@ -408,6 +712,11 @@
                 let prevMouseX = window.innerWidth / 2;
                 let mouseVelX = 0;
                 let gloveTilt = 0; // Current tilt angle
+
+                // Customization State
+                let selectedBg = 'default';
+                let selectedGlove = 'default';
+                let selectedBall = 'default';
 
                 // --- INITIALIZATION ---
                 const gameContainer = document.getElementById('game-container');
@@ -440,6 +749,33 @@
                         e.preventDefault();
                         startGame();
                     });
+
+                    // Customization Logic
+                    const options = document.querySelectorAll('.option-btn');
+                    options.forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const type = btn.dataset.type;
+                            const value = btn.dataset.value;
+
+                            // Update UI
+                            document.querySelectorAll(`.option-btn[data-type="${type}"]`).forEach(b => b.classList.remove('selected'));
+                            btn.classList.add('selected');
+
+                            // Update State
+                            if (type === 'bg') selectedBg = value;
+                            if (type === 'glove') selectedGlove = value;
+                            if (type === 'ball') selectedBall = value;
+
+                            // Apply immediately for preview (background only)
+                            if (type === 'bg') applyBackground();
+                            // If user is selecting gloves, update current gloves to show preview
+                            if (type === 'glove') updateGloveStyles();
+                        });
+                    });
+
+                    // Initial apply
+                    applyBackground();
+                    updateGloveStyles();
 
                     // Loop
                     requestAnimationFrame(gameLoop);
@@ -506,11 +842,23 @@
                     balls = [];
                     updateUI();
                     overlay.classList.add('hidden');
+
+                    // Start Music
+                    if (bgMusic) {
+                        bgMusic.volume = 0.5;
+                        bgMusic.play().catch(e => console.log("Audio play failed:", e));
+                    }
                 }
 
                 function spawnBall() {
                     const ballEl = createGO('ball-container', null);
                     ballEl.innerHTML = '<div class="ball-visual"></div>';
+
+                    // Apply selected ball style
+                    if (selectedBall !== 'default') {
+                        ballEl.querySelector('.ball-visual').classList.add(`${selectedBall}-ball`);
+                    }
+
                     gameLayer.appendChild(ballEl);
 
                     // Get container dimensions
@@ -628,8 +976,20 @@
                                 handleBounce(b, gloveHit);
                                 b.bounced = true;
                                 b.fadeStartTime = time; // Start fade timer
+
+                                // Play Kick Sound
+                                if (kickSound) {
+                                    kickSound.currentTime = 0;
+                                    kickSound.play().catch(e => { });
+                                }
+
                                 score++;
                                 updateUI();
+
+                                // SDK Haptic
+                                if (window.FarcadeSDK && window.FarcadeSDK.singlePlayer) {
+                                    try { window.FarcadeSDK.singlePlayer.actions.hapticFeedback(); } catch (e) { }
+                                }
 
                                 if (score % 5 === 0) {
                                     speedMultiplier += 0.2;
@@ -646,6 +1006,10 @@
                                 // Ball went past without being saved = goal
                                 lives--;
                                 updateUI();
+                                // SDK Haptic for failure
+                                if (window.FarcadeSDK && window.FarcadeSDK.singlePlayer) {
+                                    try { window.FarcadeSDK.singlePlayer.actions.hapticFeedback(); } catch (e) { }
+                                }
                                 if (lives <= 0) {
                                     gameOver();
                                 }
@@ -700,9 +1064,11 @@
 
                 function gameOver() {
                     isPlaying = false;
-                    overlay.classList.remove('hidden');
-                    document.getElementById('message').innerHTML = `GAME OVER<br>Score: ${score}<br>Reflex Keeper Custom`;
-                    startBtn.innerText = "TRY AGAIN";
+                    // overlay.classList.remove('hidden'); // Don't show custom overlay
+
+                    if (window.FarcadeSDK && window.FarcadeSDK.singlePlayer) {
+                        try { window.FarcadeSDK.singlePlayer.actions.gameOver({ score: score }); } catch (e) { }
+                    }
                 }
 
                 function updateUI() {
@@ -719,8 +1085,58 @@
                     return start * (1 - t) + end * t;
                 }
 
+                // Customization Helpers
+                function applyBackground() {
+                    if (selectedBg === 'realistic') {
+                        document.body.classList.add('realistic-background');
+                    } else {
+                        document.body.classList.remove('realistic-background');
+                    }
+                }
+
+                function updateGloveStyles() {
+                    // Reset classes
+                    const gloveClasses = ['blue-gloves', 'yellow-gloves', 'black-gloves'];
+                    leftGlove.classList.remove(...gloveClasses);
+                    rightGlove.classList.remove(...gloveClasses);
+
+                    if (selectedGlove !== 'default') {
+                        leftGlove.classList.add(`${selectedGlove}-gloves`);
+                        rightGlove.classList.add(`${selectedGlove}-gloves`);
+                    }
+                }
+
                 // Start
                 init();
+
+                // Farcade SDK Initialization
+                window.onload = function () {
+                    if (window.FarcadeSDK) {
+                        try {
+                            window.FarcadeSDK.singlePlayer.actions.ready();
+
+                            window.FarcadeSDK.on('play_again', () => {
+                                // Return to menu instead of starting immediately
+                                isPlaying = false;
+                                score = 0;
+                                lives = 3;
+                                balls.forEach(b => b.el.remove());
+                                balls = [];
+                                updateUI();
+                                overlay.classList.remove('hidden'); // Show menu
+                            });
+
+                            window.FarcadeSDK.on('toggle_mute', (data) => {
+                                if (bgMusic) {
+                                    bgMusic.muted = data.isMuted;
+                                }
+                                if (kickSound) kickSound.muted = data.isMuted;
+                            });
+                        } catch (e) {
+                            console.log("Farcade SDK init error: ", e);
+                        }
+                    }
+                };
 
             </script>
         </div> <!-- Close game-container -->
