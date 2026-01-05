@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Penalty Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.0/dist/phaser.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000000;
+            overflow: hidden;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
+</head>
+
+<body>
+    <div id="game-container"></div>
+    <script>
+        // Assets Configuration
+        const Assets = {
+            images: {
+                background: {
+                    "stadium-night": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/background-1767637038499.jpeg",
+                        description: "Realistic football stadium night view, rainy atmosphere",
+                        metadata: { width: 1024, height: 1024 },
+                    },
+                    "stadium-inside": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/background-1767637060109.jpeg",
+                        description: "Realistic football stadium night view, detailed crowd",
+                        metadata: { width: 1024, height: 1024 },
+                    },
+                    "stadium-night": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/background-1767638100432.jpeg",
+                        description: "First person view from INSIDE goal, looking out. Clear night. Desktop.",
+                        metadata: { width: 1024, height: 1024 },
+                    },
+                    "stadium-inside-mobile": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/background-1767638102623.jpeg",
+                        description: "First person view from INSIDE goal, looking out. Clear night. Mobile.",
+                        metadata: { width: 768, height: 1376 },
+                    },
+                    "stadium-night-mobile": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/background-1767638102623.jpeg",
+                        description: "First person view from INSIDE goal, looking out. Clear night. Mobile.",
+                        metadata: { width: 768, height: 1376 },
+                    },
+                    "realistic-stadium": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/background-1767636300807.jpeg",
+                        description:
+                            "Realistic football stadium night view seen from INSIDE the goal looking out at the pitch. Desktop.",
+                        metadata: { width: 1024, height: 1024 },
+                    },
+                    "realistic-background-mobile": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/background-1767636293811.jpeg",
+                        description:
+                            "Realistic football stadium night view seen from INSIDE the goal looking out at the pitch. Mobile.",
+                        metadata: { width: 768, height: 1376 },
+                    },
+                    stadium: {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/background-1767638082113.jpeg",
+                        description: "First person view from INSIDE goal, looking out. Day time. Desktop.",
+                        metadata: { width: 1024, height: 1024 },
+                    },
+                    "stadium-classic": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/background-1767638083530.jpeg",
+                        description: "First person view from INSIDE goal, looking out. Day time. Mobile.",
+                        metadata: { width: 768, height: 1376 },
+                    },
+                },
+                character: {
+                    glove: {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/item-1767625968362.jpg",
+                        description: "Goalkeeper glove",
+                        metadata: { width: 512, height: 512 },
+                    },
+                    goalkeeper: {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/character-1767622421941.jpg",
+                        description: "Goalkeeper character",
+                        metadata: { width: 512, height: 512 },
+                    },
+                    "blue-gloves": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/item-1767637016331.jpg",
+                        description: "Single Right Hand Goalkeeper Glove, Blue and White",
+                        metadata: { width: 1024, height: 1024 },
+                    },
+                    "yellow-gloves": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/item-1767637017012.jpg",
+                        description: "Single Right Hand Goalkeeper Glove, Yellow and Black",
+                        metadata: { width: 1024, height: 1024 },
+                    },
+                    "black-gloves": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/item-1767637861232.jpg",
+                        description: "Single Right Hand Goalkeeper Glove, Black and White, Palm Forward",
+                        metadata: { width: 1024, height: 1024 },
+                    },
+                },
+                item: {
+                    ball: {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/item-1767622428115.jpg",
+                        description: "Soccer ball",
+                        metadata: { width: 256, height: 256 },
+                    },
+                    "blue-ball": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/item-1767636186213.jpg",
+                        description: "Blue and white professional soccer ball",
+                        metadata: { width: 1024, height: 1024 },
+                    },
+                    "yellow-ball": {
+                        url: "https://agent8-games.verse8.io/mcp-agent8-generated/static-assets/item-1767636248667.jpg",
+                        description: "Yellow and black professional soccer ball",
+                        metadata: { width: 1024, height: 1024 },
+                    },
+                },
+            },
+            audio: {
+                sfx: {
+                    kick: {
+                        url: "https://remix.gg/blob/8cb8ad2d-5588-4aa9-8744-786b9809294e/kick-Ii6fIRyslPcpAZyUS2X4xYcVaiccJN.wav?HcfQ",
+                        description: "Strong soccer ball kick sound effect",
+                    },
+                },
+                bgm: {
+                    url: "https://remix.gg/blob/a7e87fc6-af1f-45d2-9544-c706441a9701/Lensko%20-%20Let%27s%20Go%21-hdQOOBrZavLEeZlcazaNpfeTOAgd4p.mp3?Cvew",
+                    description: "Lensko - Let's Go!",
+                },
+            },
+        };
+
+        // --- SelectionScene ---
+        class SelectionScene extends Phaser.Scene {
+            constructor() {
+                super({ key: "SelectionScene" });
+
+                this.gloveOptions = [
+                    { name: "Classic", key: "glove", asset: Assets.images.character.glove.url },
+                    { name: "Pro Black", key: "black-gloves", asset: Assets.images.character["black-gloves"].url },
+                    { name: "Elite Blue", key: "blue-gloves", asset: Assets.images.character["blue-gloves"].url },
+                    { name: "Striker Yellow", key: "yellow-gloves", asset: Assets.images.character["yellow-gloves"].url },
+                ];
+
+                this.ballOptions = [
+                    { name: "Classic", key: "ball", asset: Assets.images.item.ball.url },
+                    { name: "Pro Blue", key: "blue-ball", asset: Assets.images.item["blue-ball"].url },
+                    { name: "Pro Yellow", key: "yellow-ball", asset: Assets.images.item["yellow-ball"].url },
+                ];
+
+                this.bgOptions = [
+                    {
+                        name: "Realistic Night",
+                        key: "realistic",
+                        assetDesktop: Assets.images.background["realistic-stadium"].url,
+                        assetMobile: Assets.images.background["realistic-stadium"].url,
+                        preview: Assets.images.background["realistic-stadium"].url,
+                    },
+                    {
+                        name: "Goal View",
+                        key: "inside",
+                        assetDesktop: Assets.images.background["stadium-night"].url,
+                        assetMobile: Assets.images.background["stadium-night"].url,
+                        preview: Assets.images.background["stadium-night"].url,
+                    },
+                    {
+                        name: "Stadium Cam",
+                        key: "stadium",
+                        assetDesktop: Assets.images.background.stadium.url,
+                        assetMobile: Assets.images.background["stadium-classic"].url,
+                        preview: Assets.images.background.stadium.url,
+                    },
+                ];
+
+                this.currentGloveIndex = 1; // Default to Pro Black
+                this.currentBallIndex = 0;
+                this.currentBgIndex = 0;
+            }
+
+            preload() {
+                // Load all assets needed for preview and game
+                this.gloveOptions.forEach((opt) => this.load.image(opt.key, opt.asset));
+                this.ballOptions.forEach((opt) => this.load.image(opt.key, opt.asset));
+                this.bgOptions.forEach((opt) => {
+                    this.load.image(opt.key + "_desktop", opt.assetDesktop);
+                    this.load.image(opt.key + "_mobile", opt.assetMobile);
+                });
+
+                this.load.audio("kick", Assets.audio.sfx.kick.url);
+                this.load.audio("bgm", Assets.audio.bgm.url);
+            }
+
+            create() {
+                const { width, height } = this.scale;
+                const isMobile = width < height;
+
+                // Dark Background
+                this.add.rectangle(0, 0, width, height, 0x111111).setOrigin(0);
+
+                // Dynamic sizing based on height
+                const titleSize = Math.min(height * 0.08, width * 0.1);
+                const itemTitleSize = Math.min(height * 0.035, 24);
+                const itemTextSize = Math.min(height * 0.04, 28);
+                const arrowSize = Math.min(height * 0.06, 48);
+
+                // Vertical spacing calculations
+                const headerHeight = height * 0.15;
+                const footerHeight = height * 0.15;
+                const availableHeight = height - headerHeight - footerHeight;
+                const sectionHeight = availableHeight / 3;
+
+                // Title
+                this.add
+                    .text(width / 2, headerHeight / 2, "SETUP MATCH", {
+                        fontSize: `${titleSize}px`,
+                        color: "#ffffff",
+                        fontStyle: "bold",
+                        stroke: "#000000",
+                        strokeThickness: 6,
+                    })
+                    .setOrigin(0.5);
+
+                // Layout Constants
+                // Start Y is the center of the first section
+                const startY = headerHeight + sectionHeight / 2;
+
+                // Create Sections
+                this.createSection(
+                    width / 2,
+                    startY,
+                    "GLOVES",
+                    "glove",
+                    () => this.cycleGlove(-1),
+                    () => this.cycleGlove(1),
+                    sectionHeight,
+                    itemTitleSize,
+                    itemTextSize,
+                    arrowSize
+                );
+
+                this.createSection(
+                    width / 2,
+                    startY + sectionHeight,
+                    "BALL",
+                    "ball",
+                    () => this.cycleBall(-1),
+                    () => this.cycleBall(1),
+                    sectionHeight,
+                    itemTitleSize,
+                    itemTextSize,
+                    arrowSize,
+                );
+
+                this.createSection(
+                    width / 2,
+                    startY + sectionHeight * 2,
+                    "STADIUM",
+                    "bg",
+                    () => this.cycleBg(-1),
+                    () => this.cycleBg(1),
+                    sectionHeight,
+                    itemTitleSize,
+                    itemTextSize,
+                    arrowSize,
+                );
+
+                // Start Button
+                const btnColor = 0x00ff00;
+                const btnY = height - footerHeight / 2;
+                const btnWidth = Math.min(width * 0.6, 300);
+                const btnHeight = Math.min(footerHeight * 0.6, 80);
+
+                const btn = this.add
+                    .rectangle(width / 2, btnY, btnWidth, btnHeight, btnColor)
+                    .setInteractive({ useHandCursor: true });
+
+                const btnTextSize = Math.min(btnHeight * 0.6, 48);
+                this.add
+                    .text(width / 2, btnY, "KICK OFF", {
+                        fontSize: `${btnTextSize}px`,
+                        color: "#000000",
+                        fontStyle: "bold",
+                    })
+                    .setOrigin(0.5);
+
+                // Button Logic
+                btn.on("pointerdown", () => {
+                    this.tweens.add({
+                        targets: btn,
+                        scale: 0.9,
+                        duration: 100,
+                        yoyo: true,
+                        onComplete: () => this.startGame(),
+                    });
+                });
+
+                btn.on("pointerover", () => btn.setFillStyle(0x00cc00));
+                btn.on("pointerout", () => btn.setFillStyle(btnColor));
+
+                // Initialize Previews
+                this.updatePreviews(sectionHeight);
+
+                // Handle resize
+                this.scale.on("resize", this.handleResize, this);
+            }
+
+            handleResize(gameSize) {
+                this.scene.restart();
+            }
+
+            createSection(x, y, title, type, onPrev, onNext, sectionHeight, titleFontSize, textFontSize, arrowFontSize) {
+                const halfHeight = sectionHeight / 2;
+                const titleOffset = halfHeight * 0.7; // 70% towards top
+                const textOffset = halfHeight * 0.7; // 70% towards bottom
+
+                // Title (Top of section)
+                this.add
+                    .text(x, y - titleOffset, title, {
+                        fontSize: `${titleFontSize}px`,
+                        color: "#aaaaaa",
+                        fontStyle: "bold",
+                    })
+                    .setOrigin(0.5);
+
+                // Arrows
+                const arrowStyle = { fontSize: `${arrowFontSize}px`, color: "#ffffff", fontStyle: "bold" };
+                const arrowOffset = Math.min(this.scale.width * 0.35, 200);
+
+                const leftArrow = this.add
+                    .text(x - arrowOffset, y, "<", arrowStyle)
+                    .setOrigin(0.5)
+                    .setInteractive({ useHandCursor: true });
+                const rightArrow = this.add
+                    .text(x + arrowOffset, y, ">", arrowStyle)
+                    .setOrigin(0.5)
+                    .setInteractive({ useHandCursor: true });
+
+                leftArrow.on("pointerdown", onPrev);
+                rightArrow.on("pointerdown", onNext);
+
+                // Name Text (Bottom of section)
+                const textObj = this.add
+                    .text(x, y + textOffset, "", {
+                        fontSize: `${textFontSize}px`,
+                        color: "#ffffff",
+                        fontStyle: "bold",
+                    })
+                    .setOrigin(0.5);
+
+                // Store references and create placeholders
+                // Actual images set in updatePreviews
+                if (type === "glove") {
+                    this.gloveText = textObj;
+                    this.glovePreview = this.add.sprite(x, y, "glove").setOrigin(0.5);
+                } else if (type === "ball") {
+                    this.ballText = textObj;
+                    this.ballPreview = this.add.sprite(x, y, "ball").setOrigin(0.5);
+                } else {
+                    this.bgText = textObj;
+                    this.bgPreview = this.add.image(x, y, "realistic_desktop").setOrigin(0.5);
+                }
+            }
+
+            cycleGlove(dir) {
+                this.currentGloveIndex = Phaser.Math.Wrap(this.currentGloveIndex + dir, 0, this.gloveOptions.length);
+                this.updatePreviews();
+            }
+
+            cycleBall(dir) {
+                this.currentBallIndex = Phaser.Math.Wrap(this.currentBallIndex + dir, 0, this.ballOptions.length);
+                this.updatePreviews();
+            }
+
+            cycleBg(dir) {
+                this.currentBgIndex = Phaser.Math.Wrap(this.currentBgIndex + dir, 0, this.bgOptions.length);
+                this.updatePreviews();
+            }
+
+            updatePreviews(sectionHeight) {
+                const h = this.scale.height;
+                const sHeight = sectionHeight || (h * 0.7) / 3;
+                const maxIconHeight = sHeight * 0.5;
+
+                // Glove
+                const gloveOpt = this.gloveOptions[this.currentGloveIndex];
+                this.glovePreview.setTexture(gloveOpt.key);
+                this.glovePreview.setDisplaySize(maxIconHeight, maxIconHeight);
+                this.gloveText.setText(gloveOpt.name);
+
+                // Ball
+                const ballOpt = this.ballOptions[this.currentBallIndex];
+                this.ballPreview.setTexture(ballOpt.key);
+                this.ballPreview.setDisplaySize(maxIconHeight * 0.7, maxIconHeight * 0.7);
+                this.ballText.setText(ballOpt.name);
+
+                // BG
+                const bgOpt = this.bgOptions[this.currentBgIndex];
+                this.bgPreview.setTexture(bgOpt.key + "_desktop");
+                this.bgPreview.setDisplaySize(maxIconHeight * 1.8, maxIconHeight);
+                this.bgText.setText(bgOpt.name);
+            }
+
+            startGame() {
+                const selectedGlove = this.gloveOptions[this.currentGloveIndex].key;
+                const selectedBall = this.ballOptions[this.currentBallIndex].key;
+                const bgOpt = this.bgOptions[this.currentBgIndex];
+
+                const settings = {
+                    gloveKey: selectedGlove,
+                    ballKey: selectedBall,
+                    bgKeyDesktop: bgOpt.key + "_desktop",
+                    bgKeyMobile: bgOpt.key + "_mobile",
+                };
+
+                this.registry.set("gameSettings", settings);
+                this.scene.start("MainScene", settings);
+            }
+        }
+
+        // --- MainScene ---
+        class MainScene extends Phaser.Scene {
+            constructor() {
+                super({ key: "MainScene" });
+
+                // Configuration Constants
+                this.HORIZON_Y_RATIO = 0.55;
+                this.GLOVE_SCALE = 0.18;
+                this.BALL_START_SIZE = 25;
+                this.BALL_END_SIZE = 140;
+                this.GLOVE_OFFSET_X = 40;
+
+                this.score = 0;
+                this.lives = 3;
+                this.gameActive = true;
+                this.isMobile = false;
+                this.lastPointerX = 0;
+                this.currentSettings = null;
+            }
+
+            preload() {
+                // Backgrounds - loaded in SelectionScene but loading here guarantees availability if started directly?
+                // Actually standard Phaser practice is separate loading.
+                // We can rely on them being loaded if we came from SelectionScene, but let's be safe or just minimal.
+                // Since SelectionScene loads EVERYTHING, we are good.
+            }
+
+            create() {
+                const { width, height } = this.scale;
+                this.isMobile = width < height;
+
+                // Audio
+                this.kickSound = this.sound.add("kick");
+                if (!this.sound.get("bgm")) {
+                    this.bgm = this.sound.add("bgm");
+                    this.bgm.play({ loop: true, volume: 0.5, seek: 40 });
+                } else {
+                    this.bgm = this.sound.get("bgm");
+                    if (!this.bgm.isPlaying) this.bgm.play({ loop: true, volume: 0.5, seek: 40 });
+                }
+
+                // Load settings from registry or use defaults
+                this.currentSettings = this.registry.get("gameSettings") || {
+                    gloveKey: "black-gloves",
+                    ballKey: "ball",
+                    bgKeyDesktop: "realistic_desktop",
+                    bgKeyMobile: "realistic_mobile",
+                };
+
+                // 1. Background (Depth 0)
+                const bgKey = this.isMobile ? this.currentSettings.bgKeyMobile : this.currentSettings.bgKeyDesktop;
+                const finalBgKey = this.textures.exists(bgKey)
+                    ? bgKey
+                    : this.isMobile
+                        ? "realistic_mobile"
+                        : "realistic_desktop";
+
+                this.background = this.add.image(width / 2, height / 2, finalBgKey);
+
+                const bgWidth = this.background.width || 1024;
+                const bgHeight = this.background.height || 1024;
+
+                const scaleX = width / bgWidth;
+                const scaleY = height / bgHeight;
+                const scale = Math.max(scaleX, scaleY);
+                this.background.setDisplaySize(bgWidth * scale, bgHeight * scale);
+                this.background.setDepth(0);
+
+                // 2. Gloves (Depth 100)
+                const startY = height * 0.7;
+                const currentGloveScale = this.isMobile ? 0.15 : this.GLOVE_SCALE;
+                const gloveKey = this.currentSettings.gloveKey;
+                const finalGloveKey = this.textures.exists(gloveKey) ? gloveKey : "glove";
+
+                // Smart Glove Handling
+                const texture = this.textures.get(finalGloveKey);
+                const w = texture.source[0].width;
+                const h = texture.source[0].height;
+                const isPair = w > h * 1.4;
+
+                let leftFrame;
+                let rightFrame;
+
+                if (isPair) {
+                    // Handle Pair
+                    const leftName = `${finalGloveKey}_L`;
+                    const rightName = `${finalGloveKey}_R`;
+                    if (!texture.hasFrame(leftName)) {
+                        texture.add(leftName, 0, 0, 0, w / 2, h);
+                        texture.add(rightName, 0, w / 2, 0, w / 2, h);
+                    }
+                    leftFrame = leftName;
+                    rightFrame = rightName;
+
+                    this.leftGlove = this.add.sprite(width / 2 - this.GLOVE_OFFSET_X, startY, finalGloveKey, leftFrame);
+                    this.rightGlove = this.add.sprite(width / 2 + this.GLOVE_OFFSET_X, startY, finalGloveKey, rightFrame);
+                } else {
+                    // Handle Single
+                    this.leftGlove = this.add.sprite(width / 2 - this.GLOVE_OFFSET_X, startY, finalGloveKey);
+                    this.leftGlove.setFlipX(true);
+
+                    this.rightGlove = this.add.sprite(width / 2 + this.GLOVE_OFFSET_X, startY, finalGloveKey);
+                    this.rightGlove.setFlipX(false);
+                }
+
+                const size = 512 * currentGloveScale;
+                this.leftGlove.setDisplaySize(size, size);
+                this.leftGlove.setDepth(100);
+                this.leftGlove.setOrigin(0.5, 0.5);
+
+                this.rightGlove.setDisplaySize(size, size);
+                this.rightGlove.setDepth(100);
+                this.rightGlove.setOrigin(0.5, 0.5);
+
+                // 3. UI
+                this.scoreText = this.add
+                    .text(20, 20, "Saves: 0", {
+                        fontSize: "32px",
+                        color: "#00ff00",
+                        fontStyle: "bold",
+                        stroke: "#000000",
+                        strokeThickness: 4,
+                    })
+                    .setDepth(200);
+
+                this.livesText = this.add
+                    .text(20, 60, "Lives: 3", {
+                        fontSize: "32px",
+                        color: "#ff0000",
+                        fontStyle: "bold",
+                        stroke: "#000000",
+                        strokeThickness: 4,
+                    })
+                    .setDepth(200);
+
+                // 4. Input
+                this.input.on("pointermove", (pointer) => {
+                    if (!this.gameActive) return;
+                    this.updateGloves(pointer);
+                });
+
+                // 5. Game Loop
+                this.time.addEvent({
+                    delay: 1500,
+                    callback: this.spawnBall,
+                    callbackScope: this,
+                    loop: true,
+                });
+            }
+
+            updateGloves(pointer) {
+                const { width, height } = this.scale;
+                const margin = 50;
+                const targetX = Phaser.Math.Clamp(pointer.x, margin, width - margin);
+                const targetY = Phaser.Math.Clamp(pointer.y, margin, height - margin);
+
+                const velocityX = pointer.x - (this.lastPointerX || pointer.x);
+                this.lastPointerX = pointer.x;
+
+                const targetAngle = Phaser.Math.Clamp(velocityX * 1.5, -25, 25);
+
+                const currentAngle = this.leftGlove.angle;
+                const newAngle = Phaser.Math.Linear(currentAngle, targetAngle, 0.2);
+
+                this.tweens.add({
+                    targets: [this.leftGlove],
+                    x: targetX - this.GLOVE_OFFSET_X,
+                    y: targetY,
+                    angle: newAngle,
+                    duration: 50,
+                    ease: "Linear",
+                });
+
+                this.tweens.add({
+                    targets: [this.rightGlove],
+                    x: targetX + this.GLOVE_OFFSET_X,
+                    y: targetY,
+                    angle: newAngle,
+                    duration: 50,
+                    ease: "Linear",
+                });
+            }
+
+            spawnBall() {
+                if (!this.gameActive) return;
+
+                const { width, height } = this.scale;
+
+                const horizonY = height * this.HORIZON_Y_RATIO;
+                const spawnX = Phaser.Math.Between(width * 0.4, width * 0.6);
+
+                const targetX = Phaser.Math.Between(width * 0.1, width * 0.9);
+                const targetY = Phaser.Math.Between(height * 0.2, height * 0.9);
+
+                const ballKey = this.currentSettings.ballKey;
+                const finalBallKey = this.textures.exists(ballKey) ? ballKey : "ball";
+
+                const ball = this.add.sprite(spawnX, horizonY, finalBallKey);
+                ball.setDisplaySize(this.BALL_START_SIZE, this.BALL_START_SIZE);
+                ball.setDepth(10);
+
+                this.kickSound.play({ volume: 0.6 });
+
+                const shadow = this.add.ellipse(spawnX, horizonY + 10, 20, 5, 0x000000, 0.4);
+                shadow.setDepth(9);
+
+                const baseDuration = 1200;
+                const minDuration = 600;
+                const speedStep = 50;
+                const duration = Math.max(minDuration, baseDuration - this.score * speedStep);
+
+                const groundTargetY = height * 0.9;
+
+                this.tweens.add({
+                    targets: shadow,
+                    x: targetX,
+                    y: groundTargetY + 50,
+                    scaleX: 5.0,
+                    scaleY: 2.0,
+                    alpha: 0.1,
+                    duration: duration,
+                    ease: "Quad.easeIn",
+                    onComplete: () => shadow.destroy(),
+                });
+
+                const curveOffset = (Math.random() - 0.5) * width * 0.8;
+
+                const lift = height * 0.3;
+
+                // Note: Phaser.Curves.CubicBezier might require full imported phaser or work on the global
+                // Since we use global Phaser, it is Phaser.Curves.CubicBezier
+                const curve = new Phaser.Curves.CubicBezier(
+                    new Phaser.Math.Vector2(spawnX, horizonY),
+                    new Phaser.Math.Vector2(spawnX + curveOffset, horizonY - lift),
+                    new Phaser.Math.Vector2(targetX + curveOffset * 0.5, targetY - lift * 0.5),
+                    new Phaser.Math.Vector2(targetX, targetY)
+                );
+
+                const pathFollower = { t: 0, scale: this.BALL_START_SIZE };
+
+                this.tweens.add({
+                    targets: pathFollower,
+                    t: 1,
+                    scale: this.BALL_END_SIZE,
+                    duration: duration,
+                    ease: "Quad.easeIn",
+                    onUpdate: () => {
+                        const point = curve.getPoint(pathFollower.t);
+                        ball.x = point.x;
+                        ball.y = point.y;
+
+                        ball.setDisplaySize(pathFollower.scale, pathFollower.scale);
+
+                        ball.rotation += 0.2;
+                    },
+                    onComplete: () => {
+                        if (ball.active) {
+                            this.checkCollision(ball);
+                        }
+                    },
+                });
+            }
+
+            checkCollision(ball) {
+                if (!this.gameActive) return;
+
+                const leftBounds = this.leftGlove.getBounds();
+                const rightBounds = this.rightGlove.getBounds();
+                const ballBounds = ball.getBounds();
+
+                Phaser.Geom.Rectangle.Inflate(ballBounds, -20, -20);
+
+                const hitLeft = Phaser.Geom.Intersects.RectangleToRectangle(leftBounds, ballBounds);
+                const hitRight = Phaser.Geom.Intersects.RectangleToRectangle(rightBounds, ballBounds);
+
+                if (hitLeft || hitRight) {
+                    this.handleSave(ball);
+                } else {
+                    this.handleGoal(ball);
+                }
+            }
+
+            handleSave(ball) {
+                window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+                this.score++;
+                this.scoreText.setText(`Saves: ${this.score}`);
+
+                const { height } = this.scale;
+                const horizonY = height * this.HORIZON_Y_RATIO;
+
+                this.tweens.add({
+                    targets: ball,
+                    y: horizonY,
+                    x: ball.x + (Math.random() - 0.5) * 200,
+                    displayWidth: 10,
+                    displayHeight: 10,
+                    alpha: 0,
+                    angle: 360 * 2,
+                    duration: 600,
+                    ease: "Quad.out",
+                    onComplete: () => ball.destroy(),
+                });
+
+                this.showFloatingText(ball.x, ball.y, "BLOCKED!", "#00ff00");
+                this.cameras.main.shake(100, 0.01);
+            }
+
+            handleGoal(ball) {
+                window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+                this.lives--;
+                this.livesText.setText(`Lives: ${this.lives}`);
+
+                this.tweens.add({
+                    targets: ball,
+                    scale: 3.0,
+                    alpha: 0,
+                    duration: 200,
+                    onComplete: () => ball.destroy(),
+                });
+
+                this.showFloatingText(ball.x, ball.y - 50, "GOAL!", "#ff0000");
+                this.cameras.main.flash(200, 255, 0, 0);
+
+                if (this.lives <= 0) {
+                    this.handleGameOver();
+                }
+            }
+
+            handleGameOver() {
+                window.FarcadeSDK.singlePlayer.actions.gameOver({ score: this.score });
+                this.gameActive = false;
+                this.tweens.killAll();
+                this.time.removeAllEvents();
+            }
+
+            showFloatingText(x, y, text, color) {
+                const floatText = this.add
+                    .text(x, y, text, {
+                        fontSize: "48px",
+                        color: color,
+                        fontStyle: "bold",
+                        stroke: "#ffffff",
+                        strokeThickness: 6,
+                    })
+                    .setOrigin(0.5)
+                    .setDepth(300);
+
+                this.tweens.add({
+                    targets: floatText,
+                    scale: 1.5,
+                    alpha: 0,
+                    duration: 600,
+                    ease: "Power2",
+                    onComplete: () => floatText.destroy(),
+                });
+            }
+        }
+
+        // --- Init & Patches ---
+
+        // Global flag to prevent recursive prototype patching
+        let isPhaserPatched = false;
+
+        const patchPhaserPrototypes = () => {
+            if (isPhaserPatched) return;
+
+            console.log("Applying Phaser prototype patches...");
+
+            const originalSpriteSetDisplaySize = Phaser.GameObjects.Sprite.prototype.setDisplaySize;
+            const originalImageSetDisplaySize = Phaser.GameObjects.Image.prototype.setDisplaySize;
+            const originalSpriteSetScale = Phaser.GameObjects.Sprite.prototype.setScale;
+            const originalImageSetScale = Phaser.GameObjects.Image.prototype.setScale;
+            const originalTweenAdd = Phaser.Tweens.TweenManager.prototype.add;
+
+            Phaser.GameObjects.Sprite.prototype.setDisplaySize = function (width, height) {
+                this.baseDisplayWidth = width;
+                this.baseDisplayHeight = height !== undefined ? height : width;
+                return originalSpriteSetDisplaySize.call(this, width, height);
+            };
+
+            Phaser.GameObjects.Image.prototype.setDisplaySize = function (width, height) {
+                this.baseDisplayWidth = width;
+                this.baseDisplayHeight = height !== undefined ? height : width;
+                return originalImageSetDisplaySize.call(this, width, height);
+            };
+
+            Phaser.GameObjects.Sprite.prototype.setScale = function (x, y) {
+                if (this.baseDisplayWidth && this.baseDisplayHeight) {
+                    const baseWidth = this.baseDisplayWidth;
+                    const baseHeight = this.baseDisplayHeight;
+                    const textureWidth = this.width;
+                    const textureHeight = this.height;
+                    const targetWidth = baseWidth * x;
+                    const targetHeight = baseHeight * (y !== undefined ? y : x);
+                    const actualScaleX = targetWidth / textureWidth;
+                    const actualScaleY = targetHeight / textureHeight;
+                    return originalSpriteSetScale.call(this, actualScaleX, actualScaleY);
+                } else {
+                    return originalSpriteSetScale.call(this, x, y);
+                }
+            };
+
+            Phaser.GameObjects.Image.prototype.setScale = function (x, y) {
+                if (this.baseDisplayWidth && this.baseDisplayHeight) {
+                    const baseWidth = this.baseDisplayWidth;
+                    const baseHeight = this.baseDisplayHeight;
+                    const textureWidth = this.width;
+                    const textureHeight = this.height;
+                    const targetWidth = baseWidth * x;
+                    const targetHeight = baseHeight * (y !== undefined ? y : x);
+                    const actualScaleX = targetWidth / textureWidth;
+                    const actualScaleY = targetHeight / textureHeight;
+                    return originalImageSetScale.call(this, actualScaleX, actualScaleY);
+                } else {
+                    return originalImageSetScale.call(this, x, y);
+                }
+            };
+
+            Phaser.Tweens.TweenManager.prototype.add = function (config) {
+                const newConfig = { ...config };
+                if (config.scaleX !== undefined || config.scaleY !== undefined || config.scale !== undefined) {
+                    const targets = Array.isArray(config.targets) ? config.targets : [config.targets];
+                    targets.forEach((target) => {
+                        if (target instanceof Phaser.GameObjects.Sprite || target instanceof Phaser.GameObjects.Image) {
+                            if (config.scale !== undefined) {
+                                const baseWidth = target.baseDisplayWidth || target.displayWidth;
+                                const baseHeight = target.baseDisplayHeight || target.displayHeight;
+                                newConfig.displayWidth = baseWidth * config.scale;
+                                newConfig.displayHeight = baseHeight * config.scale;
+                                delete newConfig.scale;
+                            } else {
+                                if (config.scaleX !== undefined) {
+                                    const baseWidth = target.baseDisplayWidth || target.displayWidth;
+                                    newConfig.displayWidth = baseWidth * config.scaleX;
+                                    delete newConfig.scaleX;
+                                }
+                                if (config.scaleY !== undefined) {
+                                    const baseHeight = target.baseDisplayHeight || target.displayHeight;
+                                    newConfig.displayHeight = baseHeight * config.scaleY;
+                                    delete newConfig.scaleY;
+                                }
+                            }
+                        }
+                    });
+                }
+                return originalTweenAdd.call(this, newConfig);
+            };
+
+            isPhaserPatched = true;
+        };
+
+        // Create Game
+        window.onload = () => {
+            patchPhaserPrototypes();
+
+            const config = {
+                type: Phaser.AUTO,
+                width: window.innerWidth,
+                height: window.innerHeight,
+                parent: "game-container",
+                backgroundColor: "#000000",
+                physics: {
+                    default: "arcade",
+                    arcade: {
+                        gravity: { x: 0, y: 2000 },
+                        debug: false,
+                    },
+                },
+                scene: [SelectionScene, MainScene],
+                scale: {
+                    mode: Phaser.Scale.RESIZE,
+                    autoCenter: Phaser.Scale.CENTER_BOTH,
+                },
+            };
+
+            const game = new Phaser.Game(config);
+            window.game = game;
+
+            window.FarcadeSDK.on('play_again', () => {
+                const mainScene = game.scene.getScene('MainScene');
+                if (mainScene) {
+                    mainScene.scene.stop();
+                    mainScene.scene.start('SelectionScene');
+                }
+            });
+
+            window.FarcadeSDK.on('toggle_mute', (data) => {
+                game.sound.mute = data.isMuted;
+            });
+
+            window.FarcadeSDK.ready();
+        };
+    </script>
+</body>
+
+</html>
